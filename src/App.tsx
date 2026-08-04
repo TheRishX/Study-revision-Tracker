@@ -3,19 +3,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   subscribeToVideos, 
   addVideoProject, 
   incrementVideoRevision, 
   updateVideoProject, 
   deleteVideoProject, 
-  deleteRevisionLog 
+  deleteRevisionLog,
+  subscribeToCategories,
+  addStudyCategory,
+  updateStudyCategory,
+  deleteStudyCategory,
+  updateCategoryOrders,
+  updateVideoOrders,
 } from './lib/firebase';
 import { SAMPLE_VIDEOS } from './lib/sampleData';
 import { calculateAchievements } from './lib/achievements';
 import { soundEffects } from './lib/sound';
-import { VideoProject, ViewMode, SortOption, VideoStatus, RevisionLog, DailyGoal, DailyReflection } from './types';
+import { VideoProject, ViewMode, SortOption, VideoStatus, RevisionLog, DailyGoal, DailyReflection, StudyCategory } from './types';
 
 // Components
 import { Header } from './components/Header';
@@ -32,6 +38,7 @@ import { StreakCalendarModal } from './components/StreakCalendarModal';
 import { DailyReflectionModal } from './components/DailyReflectionModal';
 import { EmptyState } from './components/EmptyState';
 import { ReminderSettingsModal } from './components/ReminderSettingsModal';
+import { CategorySettingsPage } from './components/CategorySettingsPage';
 import { syncGoalWithReminderService } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -40,7 +47,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   
   // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<'overview' | 'topics'>('overview');
+  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings'>('overview');
+  const [categories, setCategories] = useState<StudyCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+  const [newTopicCategoryId, setNewTopicCategoryId] = useState('');
+  const provisioningCategories = useRef(new Set<string>());
 
   // UI Controls State - DEFAULT TO 'list' VIEW MODE
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -141,6 +152,42 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => subscribeToCategories(setCategories), []);
+
+  const smartCategories = useMemo(() => {
+    const persistedNames = new Set(categories.map(category => category.name.trim().toLocaleLowerCase()));
+    const automaticNames = [...new Set(videos.map(video => video.subject?.trim()).filter((name): name is string => Boolean(name)))]
+      .filter(name => !persistedNames.has(name.toLocaleLowerCase()))
+      .sort((a, b) => a.localeCompare(b));
+    const automatic = automaticNames.map((name, index): StudyCategory => ({
+      id: `auto:${encodeURIComponent(name.toLocaleLowerCase())}`,
+      name,
+      color: ['#667a4f', '#7a6d4f', '#4f6f7a', '#755f78', '#8a654d'][index % 5],
+      orderIndex: categories.length + index,
+      createdAt: '',
+      updatedAt: '',
+      automatic: true,
+    }));
+    const needsUncategorized = videos.some(video => !video.categoryId && !video.subject?.trim());
+    return [...categories, ...automatic, ...(needsUncategorized ? [{ id: 'uncategorized', name: 'Uncategorized', color: '#9aa191', orderIndex: 9999, createdAt: '', updatedAt: '', automatic: true } as StudyCategory] : [])];
+  }, [categories, videos]);
+
+  const categoryForVideo = useCallback((video: VideoProject) => {
+    if (video.categoryId && smartCategories.some(category => category.id === video.categoryId)) return video.categoryId;
+    const byName = smartCategories.find(category => category.name.toLocaleLowerCase() === video.subject?.trim().toLocaleLowerCase());
+    return byName?.id || 'uncategorized';
+  }, [smartCategories]);
+
+  // Existing subject names become persistent smart categories automatically.
+  useEffect(() => {
+    smartCategories.filter(category => category.automatic && category.id.startsWith('auto:')).forEach(category => {
+      const key = category.name.toLocaleLowerCase();
+      if (provisioningCategories.current.has(key)) return;
+      provisioningCategories.current.add(key);
+      void addStudyCategory(category.name, category.color, category.orderIndex).catch(() => provisioningCategories.current.delete(key));
+    });
+  }, [smartCategories]);
 
   // Compute Metrics
   const totalRevisions = useMemo(() => {
