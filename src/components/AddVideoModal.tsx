@@ -82,42 +82,52 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
         continue;
       }
 
-      // Bullet item or standard text
-      let cleaned = line.replace(/^[-*•\d+.\s]+/, '').trim();
+      // Remove only a Markdown bullet/number prefix. Keep title characters such as "3Sum" intact.
+      const cleaned = line.replace(/^(?:[-*•]\s+|\d+[.)]\s+)/, '').trim();
       if (!cleaned) continue;
 
       // Check for pipe delimiter: Title | Category | #tag1 #tag2
       let itemCategory = currentCategory;
       let itemTitle = cleaned;
+      let tagSource = cleaned;
+      let metadataTags = '';
 
       if (cleaned.includes('|')) {
         const parts = cleaned.split('|').map(p => p.trim());
         itemTitle = parts[0] || 'Untitled Topic';
         if (parts[1]) itemCategory = parts[1];
-        if (parts[2]) cleaned = parts[2]; // tags section
+        metadataTags = parts.slice(2).join(',');
+        tagSource = [parts[0], metadataTags].filter(Boolean).join(' ');
       }
 
-      // Extract hashtags
-      const extractedTags: string[] = [];
-      const hashtagMatches = itemTitle.match(/#([\w-]+)/g);
-      if (hashtagMatches) {
-        hashtagMatches.forEach(tag => {
-          extractedTags.push(tag.replace('#', ''));
-        });
-        // Remove hashtags from clean title
-        itemTitle = itemTitle.replace(/#([\w-]+)/g, '').trim();
-      }
+      // Extract and deduplicate hashtags from both the title and optional metadata column.
+      const hashtagTags = (tagSource.match(/#([\w-]+)/g) || []).map(tag => tag.slice(1));
+      const plainMetadataTags = metadataTags.includes('#') ? [] : metadataTags.split(/[,;]+/).map(tag => tag.trim()).filter(Boolean);
+      const extractedTags = [...new Set([...hashtagTags, ...plainMetadataTags])];
+      itemTitle = itemTitle.replace(/#([\w-]+)/g, '').replace(/\s+/g, ' ').trim();
+
+      // Map an explicit Markdown heading/category to one existing major category.
+      const normalize = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const normalizedCategory = normalize(itemCategory);
+      const categoryMatches = categories.filter(category => {
+        if (category.automatic) return false;
+        const normalizedName = normalize(category.name);
+        return normalizedName === normalizedCategory || normalizedCategory.includes(normalizedName) || category.keywords.some(keyword => normalize(keyword) === normalizedCategory);
+      });
+      const matchedCategory = categoryMatches.length === 1 ? categoryMatches[0] : undefined;
 
       if (itemTitle) {
         topics.push({
           title: itemTitle,
           subject: itemCategory,
+          categoryId: matchedCategory?.id || '',
+          categorySource: matchedCategory ? 'manual' : 'smart',
           revisionCount: 0,
           targetRevisionCount: 5,
           totalTimeSeconds: 0,
           status: 'not_started',
           tags: extractedTags.length ? extractedTags : [itemCategory.replace(/\s+/g, '')],
-          notes: `Imported from Markdown`,
+          notes: `Imported from Markdown under ${itemCategory}`,
           orderIndex: Date.now() + topics.length,
           revisionLogs: [
             {
@@ -134,7 +144,7 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
     }
 
     return topics;
-  }, [markdownText]);
+  }, [markdownText, categories]);
 
   if (!isOpen) return null;
 
@@ -152,6 +162,7 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
       title: title.trim(),
       subject: subject.trim() || 'MERN Stack',
       categoryId,
+      categorySource: categoryId ? 'manual' : 'smart',
       revisionCount: 0,
       targetRevisionCount: Math.max(1, targetRevisionCount),
       totalTimeSeconds: 0,
@@ -395,15 +406,15 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
                 {parsedMarkdownTopics.length > 0 ? (
                   <div className="max-h-32 overflow-y-auto space-y-1.5 text-xs text-stone-700 pr-1">
                     {parsedMarkdownTopics.map((topic, i) => (
-                      <div key={i} className="bg-white border border-emerald-100 rounded-xl p-2 flex items-center justify-between gap-2 shadow-2xs">
-                        <div className="truncate">
-                          <span className="font-bold text-stone-900">{topic.title}</span>
-                          <span className="text-[10px] text-stone-500 ml-1.5 bg-stone-100 px-1.5 py-0.5 rounded">
-                            {topic.subject}
+                      <div key={i} className="bg-white border border-emerald-100 rounded-xl p-2.5 grid sm:grid-cols-[minmax(0,1fr)_auto] gap-2 shadow-2xs">
+                        <div className="min-w-0">
+                          <span className="font-bold text-stone-900 block break-words">{topic.title}</span>
+                          <span className="inline-flex text-[10px] text-stone-500 mt-1 bg-stone-100 px-1.5 py-0.5 rounded">
+                            {categories.find(category => category.id === topic.categoryId)?.name || topic.subject || 'Smart category'}
                           </span>
                         </div>
                         {topic.tags && topic.tags.length > 0 && (
-                          <div className="flex gap-1 flex-shrink-0">
+                          <div className="flex flex-wrap gap-1 sm:justify-end self-start">
                             {topic.tags.map((t, ti) => (
                               <span key={ti} className="text-[9px] font-semibold bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded">
                                 #{t}

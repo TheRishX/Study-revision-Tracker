@@ -41,6 +41,7 @@ export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
           title: data.title || 'Untitled Topic',
           subject: data.subject || '',
           categoryId: data.categoryId || '',
+          categorySource: data.categorySource === 'manual' || (!data.categorySource && data.categoryId) ? 'manual' : 'smart',
           revisionCount: typeof data.revisionCount === 'number' ? Math.max(0, data.revisionCount) : 0,
           targetRevisionCount: typeof data.targetRevisionCount === 'number' ? data.targetRevisionCount : 3,
           totalTimeSeconds: typeof data.totalTimeSeconds === 'number' ? data.totalTimeSeconds : 0,
@@ -76,6 +77,7 @@ export function subscribeToCategories(callback: (categories: StudyCategory[]) =>
         id: categoryDoc.id,
         name: data.name || 'Untitled category',
         color: data.color || '#667a4f',
+        keywords: Array.isArray(data.keywords) ? data.keywords : [],
         orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : 0,
         createdAt: data.createdAt || new Date().toISOString(),
         updatedAt: data.updatedAt || new Date().toISOString(),
@@ -85,9 +87,9 @@ export function subscribeToCategories(callback: (categories: StudyCategory[]) =>
   }, error => console.warn('Category subscription failed:', error));
 }
 
-export async function addStudyCategory(name: string, color: string, orderIndex: number) {
+export async function addStudyCategory(name: string, color: string, orderIndex: number, keywords: string[] = []) {
   const now = new Date().toISOString();
-  const categoryDoc = await addDoc(collection(db, CATEGORIES_COLLECTION), { name, color, orderIndex, createdAt: now, updatedAt: now });
+  const categoryDoc = await addDoc(collection(db, CATEGORIES_COLLECTION), { name, color, keywords, orderIndex, createdAt: now, updatedAt: now });
   return categoryDoc.id;
 }
 

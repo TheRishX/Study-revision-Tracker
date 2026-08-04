@@ -110,7 +110,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
   const pendingCount = todos.filter(t => !t.completed).length;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40">
+    <div className="fixed top-[76px] right-4 sm:right-6 z-40 flex flex-col-reverse items-end">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -118,7 +118,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.92 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="mb-3 w-80 sm:w-96 bg-stone-900/90 backdrop-blur-2xl border border-white/20 text-white rounded-3xl p-4 shadow-2xl overflow-hidden"
+            className="mt-3 w-[calc(100vw-2rem)] max-w-80 sm:max-w-96 bg-stone-900/90 backdrop-blur-2xl border border-white/20 text-white rounded-3xl p-4 shadow-2xl overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">

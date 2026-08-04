@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { VideoProject, VideoStatus } from '../types';
+import { StudyCategory, VideoProject, VideoStatus } from '../types';
 import { Trash2, Clock, Check, Plus, Eye, Sparkles, CheckSquare, Square } from 'lucide-react';
 import { soundEffects } from '../lib/sound';
 import { formatTimeSeconds } from '../lib/timeUtils';
@@ -14,6 +14,8 @@ interface ListViewProps {
   onUpdateStatus: (videoId: string, newStatus: VideoStatus) => void;
   onOpenDetails: (video: VideoProject) => void;
   soundMuted: boolean;
+  categories?: StudyCategory[];
+  categoryForVideo?: (video: VideoProject) => string;
 }
 
 export const ListView: React.FC<ListViewProps> = ({
@@ -25,7 +27,9 @@ export const ListView: React.FC<ListViewProps> = ({
   onDeleteVideo,
   onUpdateStatus,
   onOpenDetails,
-  soundMuted
+  soundMuted,
+  categories = [],
+  categoryForVideo,
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -76,6 +80,7 @@ export const ListView: React.FC<ListViewProps> = ({
                   </button>
                 </th>
               )}
+              <th className="py-2 pl-3 pr-1 w-10 text-center">#</th>
               <th className="py-2 px-3">Study Topic</th>
               <th className="py-2 px-3">Status</th>
               <th className="py-2 px-3">Progress / Revisions</th>
@@ -84,11 +89,12 @@ export const ListView: React.FC<ListViewProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
-            {videos.map((video) => {
+            {videos.map((video, index) => {
               const targetCount = video.targetRevisionCount || 5;
               const revCount = video.revisionCount;
               const progressPercent = Math.min(100, Math.round((revCount / targetCount) * 100));
               const isSelected = selectedVideoIds.includes(video.id);
+              const resolvedCategory = categories.find(category => category.id === categoryForVideo?.(video));
 
               return (
                 <tr 
@@ -109,21 +115,31 @@ export const ListView: React.FC<ListViewProps> = ({
                     </td>
                   )}
                   
+                  <td className="py-1.5 pl-3 pr-1 text-center text-[11px] font-semibold text-stone-400 tabular-nums">
+                    {index + 1}
+                  </td>
+
                   {/* Topic Title & Subject */}
                   <td className="py-1.5 px-3">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        onClick={() => onOpenDetails(video)}
-                        className="cursor-pointer font-bold text-stone-900 text-xs hover:text-emerald-700 transition-colors truncate max-w-[260px]"
-                        title={video.title}
-                      >
-                        {video.title}
-                      </div>
-
-                      {video.subject && (
-                        <span className="text-[10px] font-semibold bg-[#edf2e8] text-[#334223] px-1.5 py-0.5 rounded border border-[#c2d4b0] flex-shrink-0">
-                          {video.subject}
+                    <div className="min-w-[250px] max-w-[380px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <button
+                          onClick={() => onOpenDetails(video)}
+                          className="cursor-pointer font-bold text-stone-900 text-xs hover:text-emerald-700 transition-colors truncate text-left"
+                          title={video.title}
+                        >
+                          {video.title}
+                        </button>
+                        <span className="text-[10px] font-semibold bg-[#edf2e8] text-[#334223] px-1.5 py-0.5 rounded border border-[#c2d4b0] flex-shrink-0 inline-flex items-center gap-1">
+                          {resolvedCategory && <i className="w-1.5 h-1.5 rounded-full" style={{ background: resolvedCategory.color }} />}
+                          {resolvedCategory?.name || video.subject || 'Uncategorized'}
                         </span>
+                      </div>
+                      {video.tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {video.tags.slice(0, 5).map(tag => <span key={tag} className="text-[9px] text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded">#{tag}</span>)}
+                          {video.tags.length > 5 && <span className="text-[9px] text-stone-400">+{video.tags.length - 5}</span>}
+                        </div>
                       )}
                     </div>
                   </td>

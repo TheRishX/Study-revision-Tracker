@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Edit3, Trash2, Save } from 'lucide-react';
-import { VideoProject, VideoStatus } from '../types';
+import { StudyCategory, VideoProject, VideoStatus } from '../types';
 import { soundEffects } from '../lib/sound';
 
 interface EditTopicModalProps {
@@ -11,6 +11,7 @@ interface EditTopicModalProps {
   onSaveTopic: (videoId: string, updates: Partial<VideoProject>) => void;
   onDeleteTopic: (videoId: string) => void;
   soundMuted: boolean;
+  categories?: StudyCategory[];
 }
 
 export const EditTopicModal: React.FC<EditTopicModalProps> = ({
@@ -19,7 +20,8 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
   onClose,
   onSaveTopic,
   onDeleteTopic,
-  soundMuted
+  soundMuted,
+  categories = [],
 }) => {
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
@@ -28,6 +30,7 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
   const [notes, setNotes] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [categoryId, setCategoryId] = useState('');
 
   useEffect(() => {
     if (video) {
@@ -37,6 +40,7 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
       setStatus(video.status || 'not_started');
       setNotes(video.notes || '');
       setTagsInput(video.tags ? video.tags.join(', ') : '');
+      setCategoryId(video.categoryId || '');
     }
   }, [video]);
 
@@ -59,7 +63,9 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
       targetRevisionCount: Math.max(1, Number(targetCount) || 5),
       status,
       notes: notes.trim(),
-      tags: parsedTags
+      tags: parsedTags,
+      categoryId,
+      categorySource: categoryId ? 'manual' : 'smart',
     });
 
     onClose();
@@ -123,12 +129,27 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
                 <label className="block text-xs font-semibold text-stone-800 mb-1">
                   Subject / Category
                 </label>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full bg-[#fafbfa] border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:border-[#4f6435]"
-                />
+                {categories.length ? (
+                  <select
+                    value={categories.find(category => category.id === categoryId)?.id || categories.find(category => category.name.toLocaleLowerCase() === subject.toLocaleLowerCase())?.id || ''}
+                    onChange={(e) => {
+                      const category = categories.find(item => item.id === e.target.value);
+                      setCategoryId(category?.automatic ? '' : category?.id || '');
+                      setSubject(category?.id === 'uncategorized' ? '' : category?.name || '');
+                    }}
+                    className="w-full bg-[#fafbfa] border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:border-[#4f6435]"
+                  >
+                    <option value="">Uncategorized</option>
+                    {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="w-full bg-[#fafbfa] border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:border-[#4f6435]"
+                  />
+                )}
               </div>
 
               <div>

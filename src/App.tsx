@@ -21,7 +21,7 @@ import {
 import { SAMPLE_VIDEOS } from './lib/sampleData';
 import { calculateAchievements } from './lib/achievements';
 import { soundEffects } from './lib/sound';
-import { VideoProject, ViewMode, SortOption, VideoStatus, RevisionLog, DailyGoal, DailyReflection, StudyCategory } from './types';
+import { VideoProject, ViewMode, SortOption, VideoStatus, RevisionLog, DailyGoal, DailyReflection, StudyCategory, ThemePreference } from './types';
 
 // Components
 import { Header } from './components/Header';
@@ -39,8 +39,27 @@ import { DailyReflectionModal } from './components/DailyReflectionModal';
 import { EmptyState } from './components/EmptyState';
 import { ReminderSettingsModal } from './components/ReminderSettingsModal';
 import { CategorySettingsPage } from './components/CategorySettingsPage';
+import { TodoWidget } from './components/TodoWidget';
 import { syncGoalWithReminderService } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
+
+const MAJOR_CATEGORIES = [
+  { name: 'HTML', color: '#a76343', keywords: ['html', 'html5', 'semantic html', 'accessibility', 'a11y', 'web forms'] },
+  { name: 'CSS', color: '#4f7188', keywords: ['css', 'css3', 'sass', 'scss', 'tailwind', 'bootstrap', 'flexbox', 'css grid', 'responsive design'] },
+  { name: 'JavaScript', color: '#9a8237', keywords: ['javascript', 'js', 'ecmascript', 'es6', 'dom', 'promise', 'async await', 'closure'] },
+  { name: 'TypeScript', color: '#47729a', keywords: ['typescript', 'type script', 'ts', 'types', 'interfaces', 'generics'] },
+  { name: 'React', color: '#4e8790', keywords: ['react', 'react.js', 'jsx', 'hooks', 'useeffect', 'usestate', 'redux', 'context api', 'nextjs', 'next.js'] },
+  { name: 'Node.js', color: '#587846', keywords: ['node', 'nodejs', 'node.js', 'npm', 'event loop', 'streams', 'backend javascript'] },
+  { name: 'Express', color: '#60685a', keywords: ['express', 'middleware', 'routing', 'rest api', 'controller', 'jwt', 'authentication'] },
+  { name: 'MongoDB', color: '#4d7d56', keywords: ['mongodb', 'mongo', 'mongoose', 'aggregation', 'nosql', 'database schema'] },
+  { name: 'MERN Projects', color: '#657346', keywords: ['mern', 'full stack', 'fullstack', 'portfolio project'] },
+  { name: 'Testing', color: '#795f82', keywords: ['testing', 'unit test', 'integration test', 'jest', 'vitest', 'cypress', 'playwright'] },
+  { name: 'Git & GitHub', color: '#695f58', keywords: ['git', 'github', 'version control', 'pull request', 'branching', 'merge conflict'] },
+  { name: 'Deployment & DevOps', color: '#596e78', keywords: ['deployment', 'deploy', 'devops', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'vercel', 'netlify', 'ci cd', 'github actions', 'nginx', 'cloud', 'cloud run'] },
+  { name: 'AI & LLMs', color: '#765f85', keywords: ['ai', 'artificial intelligence', 'generative ai', 'machine learning', 'llm', 'openai', 'gemini', 'rag', 'embedding', 'prompt engineering', 'ai agent', 'chatbot'] },
+  { name: 'Data Structures & Algorithms', color: '#7b6549', keywords: ['data structure', 'algorithm', 'dsa', 'leetcode', 'dynamic programming', 'graph', 'tree', 'sorting algorithm'] },
+  { name: 'System Design', color: '#526b67', keywords: ['system design', 'scalability', 'distributed system', 'caching', 'load balancer', 'microservices', 'message queue'] },
+] as const;
 
 export default function App() {
   const [videos, setVideos] = useState<VideoProject[]>([]);
@@ -49,15 +68,30 @@ export default function App() {
   // Navigation & Page State
   const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [newTopicCategoryId, setNewTopicCategoryId] = useState('');
-  const provisioningCategories = useRef(new Set<string>());
+  const seedingCategories = useRef(new Set<string>());
 
   // UI Controls State - DEFAULT TO 'list' VIEW MODE
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [sortOption, setSortOption] = useState<SortOption>('most_revised');
   const [searchQuery, setSearchQuery] = useState('');
   const [soundMuted, setSoundMuted] = useState(false);
+  const [themePreference, setThemePreference] = useState<ThemePreference>(() => (localStorage.getItem('rewise-theme') as ThemePreference) || 'system');
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      const resolved = themePreference === 'system' ? (media.matches ? 'dark' : 'light') : themePreference;
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.style.colorScheme = resolved;
+    };
+    applyTheme();
+    localStorage.setItem('rewise-theme', themePreference);
+    media.addEventListener('change', applyTheme);
+    return () => media.removeEventListener('change', applyTheme);
+  }, [themePreference]);
 
   // Multi-Select State
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
@@ -153,41 +187,70 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => subscribeToCategories(setCategories), []);
+  useEffect(() => subscribeToCategories(updatedCategories => {
+    setCategories(updatedCategories);
+    setCategoriesLoaded(true);
+  }), []);
 
   const smartCategories = useMemo(() => {
-    const persistedNames = new Set(categories.map(category => category.name.trim().toLocaleLowerCase()));
-    const automaticNames = [...new Set(videos.map(video => video.subject?.trim()).filter((name): name is string => Boolean(name)))]
-      .filter(name => !persistedNames.has(name.toLocaleLowerCase()))
-      .sort((a, b) => a.localeCompare(b));
-    const automatic = automaticNames.map((name, index): StudyCategory => ({
-      id: `auto:${encodeURIComponent(name.toLocaleLowerCase())}`,
-      name,
-      color: ['#667a4f', '#7a6d4f', '#4f6f7a', '#755f78', '#8a654d'][index % 5],
-      orderIndex: categories.length + index,
-      createdAt: '',
-      updatedAt: '',
-      automatic: true,
-    }));
-    const needsUncategorized = videos.some(video => !video.categoryId && !video.subject?.trim());
-    return [...categories, ...automatic, ...(needsUncategorized ? [{ id: 'uncategorized', name: 'Uncategorized', color: '#9aa191', orderIndex: 9999, createdAt: '', updatedAt: '', automatic: true } as StudyCategory] : [])];
-  }, [categories, videos]);
+    return [...categories, { id: 'uncategorized', name: 'Uncategorized', color: '#9aa191', keywords: [], orderIndex: 9999, createdAt: '', updatedAt: '', automatic: true } as StudyCategory];
+  }, [categories]);
 
   const categoryForVideo = useCallback((video: VideoProject) => {
-    if (video.categoryId && smartCategories.some(category => category.id === video.categoryId)) return video.categoryId;
-    const byName = smartCategories.find(category => category.name.toLocaleLowerCase() === video.subject?.trim().toLocaleLowerCase());
-    return byName?.id || 'uncategorized';
-  }, [smartCategories]);
-
-  // Existing subject names become persistent smart categories automatically.
-  useEffect(() => {
-    smartCategories.filter(category => category.automatic && category.id.startsWith('auto:')).forEach(category => {
-      const key = category.name.toLocaleLowerCase();
-      if (provisioningCategories.current.has(key)) return;
-      provisioningCategories.current.add(key);
-      void addStudyCategory(category.name, category.color, category.orderIndex).catch(() => provisioningCategories.current.delete(key));
+    if (video.categorySource === 'manual' && video.categoryId && categories.some(category => category.id === video.categoryId)) return video.categoryId;
+    const normalize = (value: string) => ` ${value.toLocaleLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').replace(/\s+/g, ' ').trim()} `;
+    const searchable = normalize([video.title, video.subject, video.tags?.join(' '), video.notes].filter(Boolean).join(' '));
+    let bestCategory: StudyCategory | undefined;
+    let bestScore = 0;
+    categories.forEach(category => {
+      const keywords = category.keywords?.length ? category.keywords : [category.name];
+      const normalizedName = normalize(category.name).trim();
+      const nameScore = normalizedName && searchable.includes(` ${normalizedName} `) ? 3 : 0;
+      const score = nameScore + keywords.reduce((total, keyword) => {
+        const normalizedKeyword = normalize(keyword).trim();
+        return total + (normalizedKeyword && searchable.includes(` ${normalizedKeyword} `) ? Math.max(1, normalizedKeyword.split(' ').length) : 0);
+      }, 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestCategory = category;
+      }
     });
-  }, [smartCategories]);
+    return bestCategory?.id || 'uncategorized';
+  }, [categories]);
+
+  useEffect(() => {
+    if (selectedCategoryId !== 'all' && !smartCategories.some(category => category.id === selectedCategoryId)) {
+      setSelectedCategoryId('all');
+    }
+  }, [selectedCategoryId, smartCategories]);
+
+  // Seed a deliberate curriculum. Topic/video names never become categories.
+  useEffect(() => {
+    if (!categoriesLoaded) return;
+    const existingNames = new Set(categories.map(category => category.name.toLocaleLowerCase()));
+    MAJOR_CATEGORIES.forEach((category, index) => {
+      const key = category.name.toLocaleLowerCase();
+      const existing = categories.find(item => item.name.toLocaleLowerCase() === key);
+      if (existing && !existing.keywords.length && !seedingCategories.current.has(`upgrade:${key}`)) {
+        seedingCategories.current.add(`upgrade:${key}`);
+        void updateStudyCategory(existing.id, { keywords: [...category.keywords] });
+      }
+      if (existingNames.has(key) || seedingCategories.current.has(key)) return;
+      seedingCategories.current.add(key);
+      void addStudyCategory(category.name, category.color, index, [...category.keywords]).catch(() => seedingCategories.current.delete(key));
+    });
+  }, [categories, categoriesLoaded]);
+
+  // Smart topics are reclassified whenever their text or category keywords change.
+  useEffect(() => {
+    if (!categoriesLoaded || !categories.length) return;
+    videos.filter(video => video.categorySource !== 'manual').forEach(video => {
+      const predictedId = categoryForVideo(video);
+      const storedId = predictedId === 'uncategorized' ? '' : predictedId;
+      if (video.categoryId === storedId && video.categorySource === 'smart') return;
+      void updateVideoProject(video.id, { categoryId: storedId, categorySource: 'smart' });
+    });
+  }, [videos, categories, categoriesLoaded, categoryForVideo]);
 
   // Compute Metrics
   const totalRevisions = useMemo(() => {
@@ -254,6 +317,14 @@ export default function App() {
     setDailyGoal(updatedGoal);
     localStorage.setItem(`dailyGoal_${todayStr}`, JSON.stringify(updatedGoal));
     void syncGoalWithReminderService(updatedGoal);
+  };
+
+  const handleChangeDailyGoal = () => {
+    setDailyGoal(null);
+    localStorage.removeItem(`dailyGoal_${todayStr}`);
+    localStorage.removeItem(`focusTimer_${todayStr}`);
+    void syncGoalWithReminderService(null);
+    setCurrentPage('overview');
   };
 
   const handleCompleteDailyGoal = async (video?: VideoProject) => {
@@ -410,12 +481,59 @@ export default function App() {
     }
   };
 
+  const handleCreateCategory = async (name: string, color: string, keywords: string[]) => {
+    if (smartCategories.some(category => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) return;
+    await addStudyCategory(name, color, smartCategories.length, keywords);
+  };
+
+  const handleUpdateCategory = async (category: StudyCategory, name: string, color: string, keywords: string[]) => {
+    if (category.automatic) return;
+    await updateStudyCategory(category.id, { name, color, keywords });
+  };
+
+  const handleDeleteCategory = async (category: StudyCategory) => {
+    const affected = videos.filter(video => categoryForVideo(video) === category.id);
+    await Promise.all(affected.map(video => updateVideoProject(video.id, { categoryId: '', categorySource: 'smart' })));
+    if (!category.automatic) await deleteStudyCategory(category.id);
+    if (selectedCategoryId === category.id) setSelectedCategoryId('all');
+  };
+
+  const handleReorderCategories = async (draggedId: string, targetId: string) => {
+    const reordered = [...smartCategories];
+    const from = reordered.findIndex(category => category.id === draggedId);
+    const to = reordered.findIndex(category => category.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [dragged] = reordered.splice(from, 1);
+    reordered.splice(to, 0, dragged);
+    await updateCategoryOrders(reordered);
+  };
+
+  const handleAssignTopic = async (video: VideoProject, category: StudyCategory) => {
+    await updateVideoProject(video.id, {
+      categoryId: category.automatic ? '' : category.id,
+      categorySource: category.id === 'uncategorized' ? 'smart' : 'manual',
+    });
+  };
+
+  const handleReorderTopics = async (categoryId: string, draggedId: string, targetId: string) => {
+    const dragged = videos.find(video => video.id === draggedId);
+    const category = smartCategories.find(item => item.id === categoryId);
+    if (!dragged || !category) return;
+    if (categoryForVideo(dragged) !== categoryId) await handleAssignTopic(dragged, category);
+    const reordered = [...videos].sort((a, b) => a.orderIndex - b.orderIndex).filter(video => video.id !== draggedId);
+    const targetIndex = reordered.findIndex(video => video.id === targetId);
+    reordered.splice(targetIndex < 0 ? reordered.length : targetIndex, 0, dragged);
+    await updateVideoOrders(reordered);
+    setSortOption('manual');
+  };
+
   // Filter and Sort Videos
   const filteredAndSortedVideos = useMemo(() => {
     const q = searchQuery.trim().toLocaleLowerCase();
     const searchableText = (value: unknown) => String(value ?? '').toLocaleLowerCase();
 
     let result = videos.filter(v => {
+      if (selectedCategoryId !== 'all' && categoryForVideo(v) !== selectedCategoryId) return false;
       if (!q) return true;
 
       return (
@@ -439,13 +557,16 @@ export default function App() {
       case 'alphabetical':
         result.sort((a, b) => a.title.localeCompare(b.title));
         break;
+      case 'numbering':
+        result.sort((a, b) => a.orderIndex - b.orderIndex || a.title.localeCompare(b.title));
+        break;
     }
 
     return result;
-  }, [videos, searchQuery, sortOption]);
+  }, [videos, searchQuery, sortOption, selectedCategoryId, categoryForVideo]);
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white bg-[#fbfcf9] overflow-x-hidden">
+    <div className="app-shell relative min-h-screen w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white overflow-x-hidden">
 
       {/* Header Navigation */}
       <Header
@@ -473,11 +594,12 @@ export default function App() {
         onOpenStreakCalendarModal={() => setIsStreakCalendarOpen(true)}
         onOpenReflectionModal={() => setIsReflectionModalOpen(true)}
         onOpenReminderSettings={() => setIsReminderSettingsOpen(true)}
+        onOpenSettings={() => setCurrentPage('settings')}
       />
 
       {/* Main Content View Container */}
       <main className={`flex-1 w-full relative z-10 ${
-        currentPage === 'overview' ? 'flex flex-col' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
+        currentPage === 'overview' ? 'flex flex-col' : currentPage === 'settings' ? '' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
       }`}>
         
         {loading ? (
@@ -506,13 +628,30 @@ export default function App() {
                   onSaveDailyGoal={handleSaveDailyGoal}
                   onCompleteDailyGoal={handleCompleteDailyGoal}
                 />
+              ) : currentPage === 'settings' ? (
+                <CategorySettingsPage
+                  categories={smartCategories}
+                  videos={videos}
+                  categoryForVideo={categoryForVideo}
+                  onCreateCategory={handleCreateCategory}
+                  onUpdateCategory={handleUpdateCategory}
+                  onDeleteCategory={handleDeleteCategory}
+                  onReorderCategories={handleReorderCategories}
+                  onAssignTopic={handleAssignTopic}
+                  onReorderTopics={handleReorderTopics}
+                  onAddTopic={(category) => { setNewTopicCategoryId(category.id); setIsAddModalOpen(true); }}
+                  themePreference={themePreference}
+                  onThemeChange={setThemePreference}
+                  dailyGoal={dailyGoal}
+                  onChangeDailyGoal={handleChangeDailyGoal}
+                />
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
                 <div className="pb-16 space-y-4">
                   
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-bold text-stone-900">All Study Topics ({filteredAndSortedVideos.length})</h2>
+                      <h2 className="text-xl font-bold text-stone-900">{selectedCategoryId === 'all' ? 'All Study Topics' : smartCategories.find(category => category.id === selectedCategoryId)?.name || 'Topics'} ({filteredAndSortedVideos.length})</h2>
                       <p className="text-xs text-stone-500">
                         Manage topics, track revisions, and monitor practice sessions
                       </p>
@@ -524,6 +663,20 @@ export default function App() {
                     >
                       + Add Topic
                     </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+                    <button onClick={() => setSelectedCategoryId('all')} className={`category-filter ${selectedCategoryId === 'all' ? 'category-filter-active' : ''}`}>
+                      All topics <span>{videos.length}</span>
+                    </button>
+                    {smartCategories.map(category => {
+                      const count = videos.filter(video => categoryForVideo(video) === category.id).length;
+                      return (
+                        <button key={category.id} onClick={() => setSelectedCategoryId(category.id)} className={`category-filter ${selectedCategoryId === category.id ? 'category-filter-active' : ''}`}>
+                          <i style={{ background: category.color }} /> {category.name} <span>{count}</span>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {filteredAndSortedVideos.length === 0 ? (
@@ -544,6 +697,8 @@ export default function App() {
                           onUpdateStatus={handleUpdateStatus}
                           onOpenDetails={(v) => setSelectedDetailsVideo(v)}
                           soundMuted={soundMuted}
+                          categories={smartCategories}
+                          categoryForVideo={categoryForVideo}
                         />
                       )}
 
@@ -577,7 +732,7 @@ export default function App() {
                                 onUpdateStatus={handleUpdateStatus}
                                 onOpenDetails={(v) => setSelectedDetailsVideo(v)}
                                 onOpenEditModal={(v) => setSelectedEditVideo(v)}
-                                onSetDailyGoalVideo={handleSetDailyGoalVideo}
+                                onSetDailyGoalVideo={dailyGoal ? undefined : handleSetDailyGoalVideo}
                                 onSaveProjectTime={handleSaveProjectTime}
                                 onSaveQuickNote={(videoId, notes) => handleSaveTopic(videoId, { notes })}
                                 soundMuted={soundMuted}
@@ -609,12 +764,16 @@ export default function App() {
 
       </main>
 
+      {currentPage === 'overview' && <TodoWidget soundMuted={soundMuted} />}
+
       {/* Modals */}
       <AddVideoModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => { setIsAddModalOpen(false); setNewTopicCategoryId(''); }}
         onAddVideo={handleAddVideo}
         onBatchAddVideos={handleBatchAddVideos}
+        categories={smartCategories}
+        initialCategoryId={newTopicCategoryId}
       />
 
       <EditTopicModal
@@ -624,6 +783,7 @@ export default function App() {
         onSaveTopic={handleSaveTopic}
         onDeleteTopic={handleDeleteVideo}
         soundMuted={soundMuted}
+        categories={smartCategories}
       />
 
       <RevisionDetailsModal

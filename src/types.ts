@@ -23,6 +23,7 @@ export interface VideoProject {
   title: string;
   subject?: string;
   categoryId?: string;
+  categorySource?: 'manual' | 'smart';
   clientName?: string; // Kept optional for backward compatibility
   revisionCount: number;
   targetRevisionCount?: number; // Target revision limit e.g. 5
@@ -41,6 +42,7 @@ export interface StudyCategory {
   id: string;
   name: string;
   color: string;
+  keywords: string[];
   orderIndex: number;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +50,7 @@ export interface StudyCategory {
 }
 
 export type ViewMode = 'grid' | 'compact_grid' | 'kanban' | 'list';
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export type SortOption = 
   | 'most_revised' 
@@ -55,6 +58,7 @@ export type SortOption =
   | 'newest' 
   | 'oldest' 
   | 'alphabetical' 
+  | 'numbering'
   | 'manual';
 
 export interface Achievement {
