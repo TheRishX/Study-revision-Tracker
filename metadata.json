@@ -1,0 +1,6 @@
+{
+  "name": "Study Video Revision Tracker",
+  "description": "Study video revision tracker to revise lectures repeatedly, track study streaks, and master video courses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,173 @@
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  serverTimestamp,
+  increment,
+  getDocs,
+  setDoc
+} from 'firebase/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
+import { VideoProject, RevisionLog, VideoStatus } from '../types';
+
+// Initialize Firebase App
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+// Get Firestore database instance with configured database ID
+export const db = firebaseConfig.firestoreDatabaseId 
+  ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
+  : getFirestore(app);
+
+const VIDEOS_COLLECTION = 'videos';
+
+// Subscribe to videos list in real-time
+export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
+  try {
+    const q = query(collection(db, VIDEOS_COLLECTION));
+    return onSnapshot(q, (snapshot) => {
+      const items: VideoProject[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        items.push({
+          id: docSnap.id,
+          title: data.title || 'Untitled Topic',
+          subject: data.subject || '',
+          revisionCount: typeof data.revisionCount === 'number' ? data.revisionCount : 1,
+          targetRevisionCount: typeof data.targetRevisionCount === 'number' ? data.targetRevisionCount : 3,
+          totalTimeSeconds: typeof data.totalTimeSeconds === 'number' ? data.totalTimeSeconds : 0,
+          status: (data.status as VideoStatus) || 'in_progress',
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          deadline: data.deadline || '',
+          notes: data.notes || '',
+          orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : 0,
+          revisionLogs: Array.isArray(data.revisionLogs) ? data.revisionLogs : [],
+          createdAt: data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt || new Date().toISOString(),
+        });
+      });
+
+      // Sort client side by orderIndex
+      items.sort((a, b) => a.orderIndex - b.orderIndex);
+      callback(items);
+    }, (error) => {
+      console.warn('Firestore subscription warning, fallback to local cache:', error);
+    });
+  } catch (err) {
+    console.error('Failed to subscribe to Firestore videos:', err);
+    return () => {};
+  }
+}
+
+// Add a new video project
+export async function addVideoProject(video: Omit<VideoProject, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const now = new Date().toISOString();
+  const docRef = await addDoc(collection(db, VIDEOS_COLLECTION), {
+    ...video,
+    revisionCount: Math.max(1, video.revisionCount || 1),
+    targetRevisionCount: Math.max(1, video.targetRevisionCount || 3),
+    totalTimeSeconds: Math.max(0, video.totalTimeSeconds || 0),
+    status: video.status || 'in_progress',
+    tags: video.tags || [],
+    orderIndex: video.orderIndex ?? Date.now(),
+    revisionLogs: video.revisionLogs || [
+      {
+        id: 'rev-1',
+        revisionNumber: 1,
+        reason: 'First Watch 📺',
+        notes: 'Initial study video review and note taking',
+        durationSeconds: 0,
+        timestamp: now
+      }
+    ],
+    createdAt: now,
+    updatedAt: now,
+  });
+  return docRef.id;
+}
+
+// Increment revision count by 1 with optional log detail & session duration
+export async function incrementVideoRevision(
+  videoId: string, 
+  currentCount: number, 
+  logData?: Omit<RevisionLog, 'id' | 'revisionNumber' | 'timestamp'>,
+  existingLogs: RevisionLog[] = [],
+  addedDurationSeconds: number = 0
+) {
+  const videoRef = doc(db, VIDEOS_COLLECTION, videoId);
+  const nextNumber = currentCount + 1;
+  const now = new Date().toISOString();
+
+  const newLog: RevisionLog = {
+    id: `rev-${nextNumber}-${Date.now()}`,
+    revisionNumber: nextNumber,
+    reason: logData?.reason || 'General Revision Round',
+    notes: logData?.notes || '',
+    durationSeconds: logData?.durationSeconds ?? addedDurationSeconds ?? 0,
+    timestamp: now
+  };
+
+  const updatedLogs = [...existingLogs, newLog];
+
+  const updateData: any = {
+    revisionCount: increment(1),
+    revisionLogs: updatedLogs,
+    updatedAt: now
+  };
+
+  if (addedDurationSeconds > 0 || logData?.durationSeconds) {
+    const timeToAdd = logData?.durationSeconds || addedDurationSeconds;
+    updateData.totalTimeSeconds = increment(timeToAdd);
+  }
+
+  await updateDoc(videoRef, updateData);
+
+  return nextNumber;
+}
+
+// Update existing video details
+export async function updateVideoProject(videoId: string, updates: Partial<VideoProject>) {
+  const videoRef = doc(db, VIDEOS_COLLECTION, videoId);
+  const payload = {
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
+  await updateDoc(videoRef, payload);
+}
+
+// Delete video card from Firestore
+export async function deleteVideoProject(videoId: string) {
+  const videoRef = doc(db, VIDEOS_COLLECTION, videoId);
+  await deleteDoc(videoRef);
+}
+
+// Delete a specific revision log from a video project
+export async function deleteRevisionLog(videoId: string, logId: string, currentLogs: RevisionLog[]) {
+  const videoRef = doc(db, VIDEOS_COLLECTION, videoId);
+  const updatedLogs = currentLogs.filter(l => l.id !== logId);
+  const newCount = Math.max(0, updatedLogs.length);
+  await updateDoc(videoRef, {
+    revisionLogs: updatedLogs,
+    revisionCount: newCount,
+    updatedAt: new Date().toISOString()
+  });
+}
+
+// Update order indexes after reordering/drag-and-drop
+export async function updateVideoOrders(reorderedVideos: VideoProject[]) {
+  try {
+    const promises = reorderedVideos.map((v, idx) => {
+      const videoRef = doc(db, VIDEOS_COLLECTION, v.id);
+      return updateDoc(videoRef, { orderIndex: idx });
+    });
+    await Promise.all(promises);
+  } catch (err) {
+    console.error('Failed to batch update video order:', err);
+  }
+}

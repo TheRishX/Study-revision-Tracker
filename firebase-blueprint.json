@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "videos": {
+      "title": "videos",
+      "description": "Video projects tracked for revisions",
+      "properties": {
+        "title": { "type": "string" },
+        "clientName": { "type": "string" },
+        "revisionCount": { "type": "number" },
+        "status": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "deadline": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "notes": { "type": "string" },
+        "orderIndex": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "revisionCount", "status", "createdAt"]
+    },
+    "revisionLogs": {
+      "title": "revisionLogs",
+      "description": "Individual revision logs for video projects",
+      "properties": {
+        "videoId": { "type": "string" },
+        "revisionNumber": { "type": "number" },
+        "reason": { "type": "string" },
+        "clientMood": { "type": "string" },
+        "notes": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["videoId", "revisionNumber", "timestamp"]
+    }
+  }
+}
