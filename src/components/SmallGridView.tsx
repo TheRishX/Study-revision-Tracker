@@ -92,8 +92,9 @@ export const SmallGridView: React.FC<SmallGridViewProps> = ({
                   
                   <span className={`w-2 h-2 rounded-full ${
                     video.status === 'mastered' ? 'bg-emerald-500' :
-                    video.status === 'revision_due' ? 'bg-amber-500' : 'bg-blue-500'
-                  }`} title={video.status} />
+                    video.status === 'revision_due' ? 'bg-amber-500' :
+                    video.status === 'not_started' ? 'bg-stone-300' : 'bg-blue-500'
+                  }`} title={video.status === 'not_started' ? 'Not Started' : video.status} />
                 </div>
 
                 {/* Title */}

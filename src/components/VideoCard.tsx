@@ -100,6 +100,8 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   // Minimalist status badge
   const getStatusBadge = (status: VideoStatus) => {
     switch (status) {
+      case 'not_started':
+        return { label: 'Not Started', bg: 'bg-stone-50 text-stone-600 border-stone-200' };
       case 'mastered':
         return { label: 'Mastered', bg: 'bg-emerald-50 text-emerald-900 border-emerald-200' };
       case 'revision_due':
@@ -150,6 +152,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
               onChange={(e) => onUpdateStatus(video.id, e.target.value as VideoStatus)}
               className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-lg border focus:outline-none cursor-pointer ${statusBadge.bg}`}
             >
+              <option value="not_started">○ Not Started</option>
               <option value="in_progress">📖 Learning</option>
               <option value="revision_due">🔄 Revision Due</option>
               <option value="mastered">🏆 Mastered</option>

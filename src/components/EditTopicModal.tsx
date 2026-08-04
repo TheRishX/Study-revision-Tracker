@@ -24,7 +24,7 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
   const [targetCount, setTargetCount] = useState(5);
-  const [status, setStatus] = useState<VideoStatus>('in_progress');
+  const [status, setStatus] = useState<VideoStatus>('not_started');
   const [notes, setNotes] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -34,7 +34,7 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
       setTitle(video.title || '');
       setSubject(video.subject || '');
       setTargetCount(video.targetRevisionCount || 5);
-      setStatus(video.status || 'in_progress');
+      setStatus(video.status || 'not_started');
       setNotes(video.notes || '');
       setTagsInput(video.tags ? video.tags.join(', ') : '');
     }
@@ -155,6 +155,7 @@ export const EditTopicModal: React.FC<EditTopicModalProps> = ({
                 onChange={(e) => setStatus(e.target.value as VideoStatus)}
                 className="w-full bg-[#fafbfa] border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:border-[#4f6435] cursor-pointer"
               >
+                <option value="not_started">○ Not Started</option>
                 <option value="in_progress">📖 Active Learning</option>
                 <option value="revision_due">🔄 Revision Due</option>
                 <option value="mastered">🏆 Mastered</option>

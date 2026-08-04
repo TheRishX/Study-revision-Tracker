@@ -135,6 +135,7 @@ export const ListView: React.FC<ListViewProps> = ({
                       onChange={(e) => onUpdateStatus(video.id, e.target.value as VideoStatus)}
                       className="text-[11px] font-medium px-2 py-0.5 rounded-lg border border-stone-200 bg-[#fafbfa] text-stone-800 focus:outline-none cursor-pointer"
                     >
+                      <option value="not_started">○ Not Started</option>
                       <option value="in_progress">📖 Learning</option>
                       <option value="revision_due">🔄 Revise Due</option>
                       <option value="mastered">🏆 Mastered</option>

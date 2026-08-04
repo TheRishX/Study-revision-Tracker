@@ -1,364 +1,159 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Target, 
-  CheckCircle2, 
-  Plus, 
-  Flame, 
-  ArrowRight, 
-  Clock, 
-  BookOpen,
-  Timer,
-  Check,
-  Sparkles,
-  RefreshCw,
-  Edit3
-} from 'lucide-react';
-import { VideoProject, DailyGoal } from '../types';
-import { RevisionTimer } from './RevisionTimer';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, BookOpen, Check, ChevronDown, CirclePause, Flame, Play, Plus, RotateCcw, Sparkles, Target } from 'lucide-react';
+import { DailyGoal, VideoProject } from '../types';
 
-interface OverviewDashboardProps {
+interface Props {
   videos: VideoProject[];
   dailyGoal: DailyGoal | null;
   streakDays: number;
-  approvedCount: number;
-  totalCompletedRevisions: number;
-  totalTargetRevisions: number;
-  overallProgressPercent: number;
   onNavigateToTopics: () => void;
   onOpenAddModal: () => void;
-  onSetDailyGoalVideo: (videoId: string) => void;
-  onCompleteDailyGoal: (video: VideoProject) => void;
-  onIncrementRevision: (video: VideoProject, addedDurationSeconds?: number) => void;
-  onSaveProjectTime?: (videoId: string, durationSeconds: number) => void;
-  onOpenStreakCalendarModal: () => void;
-  onOpenReflectionModal: () => void;
-  soundMuted: boolean;
+  onSaveDailyGoal: (goal: DailyGoal) => void;
+  onCompleteDailyGoal: (video?: VideoProject) => void;
 }
 
-const INSPIRATIONAL_QUOTES = [
-  { text: "Consistency is the key to deep mastery.", author: "Marcus Aurelius" },
-  { text: "Focus on process over outcome — revision by revision.", author: "James Clear" },
-  { text: "Small daily efforts compound into extraordinary knowledge.", author: "Darren Hardy" },
-  { text: "Deep learning requires deliberate, quiet repetition.", author: "Cal Newport" },
-  { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Will Durant" },
-  { text: "Action is the foundational key to all success.", author: "Pablo Picasso" },
-  { text: "Your future self will thank you for today's focused effort.", author: "Momentum Mindset" }
-];
+const formatTimer = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
-export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
-  videos,
-  dailyGoal,
-  streakDays,
-  approvedCount,
-  totalCompletedRevisions,
-  totalTargetRevisions,
-  overallProgressPercent,
-  onNavigateToTopics,
-  onOpenAddModal,
-  onSetDailyGoalVideo,
-  onCompleteDailyGoal,
-  onIncrementRevision,
-  onSaveProjectTime,
-  onOpenStreakCalendarModal,
-  onOpenReflectionModal,
-  soundMuted
+export const OverviewDashboard: React.FC<Props> = ({
+  videos, dailyGoal, streakDays, onNavigateToTopics, onOpenAddModal, onSaveDailyGoal, onCompleteDailyGoal,
 }) => {
-  // Target topic for today
-  const targetVideo = videos.find(v => v.id === dailyGoal?.videoId) || videos[0];
-  const isGoalCompletedToday = Boolean(dailyGoal?.completed);
-  const [showTimer, setShowTimer] = useState(false);
-
-  // Real-time clock for Momentum UI
-  const [timeStr, setTimeStr] = useState('');
-  const [greeting, setGreeting] = useState('');
-  
-  // Daily Wisdom state
-  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * INSPIRATIONAL_QUOTES.length));
-
-  const handleNextQuote = () => {
-    setQuoteIndex((prev) => (prev + 1) % INSPIRATIONAL_QUOTES.length);
-  };
-
-  const currentQuote = INSPIRATIONAL_QUOTES[quoteIndex];
-
-  // Year Countdown stats
-  const yearStats = React.useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59);
-
-    let totalDaysLeft = 0;
-    let daysExcludingSundays = 0;
-
-    const temp = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    while (temp <= yearEnd) {
-      totalDaysLeft++;
-      if (temp.getDay() !== 0) { // Sunday is 0
-        daysExcludingSundays++;
-      }
-      temp.setDate(temp.getDate() + 1);
-    }
-
-    return { totalDaysLeft, daysExcludingSundays, currentYear };
-  }, []);
+  const [intent, setIntent] = useState('');
+  const [videoId, setVideoId] = useState('');
+  const [targetMinutes, setTargetMinutes] = useState(45);
+  const [seconds, setSeconds] = useState(0);
+  const [running, setRunning] = useState(false);
+  const linkedVideo = videos.find(video => video.id === dailyGoal?.videoId);
+  const today = useMemo(() => new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }), []);
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeStr(now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }));
+    if (!running) return;
+    const timer = window.setInterval(() => setSeconds(value => value + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
 
-      const hour = now.getHours();
-      if (hour < 12) setGreeting('Good Morning');
-      else if (hour < 18) setGreeting('Good Afternoon');
-      else setGreeting('Good Evening');
-    };
+  const saveGoal = (event: React.FormEvent) => {
+    event.preventDefault();
+    const selected = videos.find(video => video.id === videoId);
+    const cleanIntent = intent.trim() || selected?.title;
+    if (!cleanIntent) return;
+    onSaveDailyGoal({
+      dateStr: new Date().toISOString().split('T')[0],
+      videoId: videoId || undefined,
+      intent: cleanIntent,
+      targetMinutes,
+      status: 'not_started',
+      completed: false,
+    });
+  };
 
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const setStatus = (status: DailyGoal['status']) => {
+    if (!dailyGoal) return;
+    onSaveDailyGoal({ ...dailyGoal, status, lastCheckInAt: new Date().toISOString() });
+    setRunning(status === 'learning');
+  };
 
-  const todayDateString = new Date().toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  });
-
-  const targetCount = targetVideo?.targetRevisionCount || 5;
-  const currentCount = targetVideo?.revisionCount || 0;
-  const targetProgressPercent = Math.min(100, Math.round((currentCount / targetCount) * 100));
-
-  return (
-    <div className="flex-1 flex flex-col justify-between items-center py-6 px-4 sm:px-8 max-w-4xl mx-auto w-full text-white min-h-[calc(100vh-80px)]">
-      
-      {/* Top Controls Row */}
-      <div className="w-full flex items-center justify-between text-white flex-wrap gap-2.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold uppercase tracking-widest text-stone-200 bg-stone-900/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 shadow-sm">
-            {todayDateString}
-          </span>
-
-          <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 backdrop-blur-md px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5" title={`${yearStats.totalDaysLeft} days remaining in ${yearStats.currentYear}. Excluding Sundays, there are ${yearStats.daysExcludingSundays} effective study days left.`}>
-            <Clock className="w-3 h-3 text-emerald-400" />
-            <span>{yearStats.totalDaysLeft}d left in {yearStats.currentYear} ({yearStats.daysExcludingSundays} study days)</span>
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenReflectionModal}
-            className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white backdrop-blur-md border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
-            title="Open Today's Commitment & Reflection"
-          >
-            <Edit3 className="w-3.5 h-3.5 text-amber-300" />
-            <span>Today's Commitment</span>
-          </button>
-
-          <button
-            onClick={onOpenStreakCalendarModal}
-            className="flex items-center gap-1.5 bg-stone-900/60 hover:bg-stone-900/80 text-white backdrop-blur-md border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
-            title="30-Day Activity Heatmap"
-          >
-            <Flame className="w-4 h-4 text-orange-400 fill-orange-400" />
-            <span>Heatmap ({streakDays}d)</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Center Content: Momentum Time & Daily Goal Focal Point */}
-      <div className="max-w-xl w-full text-center my-auto py-6 space-y-6">
-        
-        {/* Real-time Digital Clock & Greeting */}
-        <div className="space-y-1.5">
-          <h1 className="text-6xl sm:text-8xl font-black text-white tracking-tight drop-shadow-lg font-mono">
-            {timeStr || '10:00 AM'}
-          </h1>
-          <p className="text-xl sm:text-2xl font-bold text-stone-100 drop-shadow-md">
-            {greeting}, Scholar.
-          </p>
-        </div>
-
-        {/* Daily Wisdom Widget */}
-        <div className="bg-stone-900/60 backdrop-blur-xl border border-white/15 rounded-2xl p-4 text-left shadow-lg relative group transition-all">
-          <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2.5">
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200">Daily Wisdom</span>
-            </div>
-            <button 
-              onClick={handleNextQuote}
-              className="text-stone-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-medium"
-              title="Next Motivational Quote"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Refresh</span>
-            </button>
+  if (!dailyGoal) {
+    return (
+      <div className="focus-page">
+        <div className="w-full max-w-2xl mx-auto">
+          <div className="mb-10 text-center sm:text-left">
+            <p className="eyebrow">{today}</p>
+            <h1 className="display-title mt-3">What will you learn today?</h1>
+            <p className="mt-3 text-[#737a6c] text-base">One clear outcome. Everything else can wait.</p>
           </div>
 
-          <p className="text-xs sm:text-sm text-stone-100 italic font-medium leading-relaxed">
-            "{currentQuote.text}"
-          </p>
-          <p className="text-[11px] font-semibold text-emerald-300/90 text-right mt-1">
-            — {currentQuote.author}
-          </p>
-        </div>
+          <form onSubmit={saveGoal} className="goal-card space-y-6">
+            <label className="block">
+              <span className="field-label">Today's outcome</span>
+              <input autoFocus value={intent} onChange={e => setIntent(e.target.value)} placeholder="e.g. Explain Dijkstra's algorithm from memory" className="goal-input" />
+            </label>
 
-        {/* Momentum Centered Daily Goal Card */}
-        {!targetVideo ? (
-          /* Empty State */
-          <div className="bg-stone-900/70 backdrop-blur-xl border border-white/20 rounded-3xl p-8 text-center text-white shadow-2xl space-y-4">
-            <div className="w-12 h-12 bg-white/10 text-emerald-300 rounded-2xl flex items-center justify-center mx-auto border border-white/20">
-              <Target className="w-6 h-6 stroke-[2]" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold">No Goal Topic Set</h2>
-              <p className="text-xs text-stone-300 mt-1">
-                Add a study topic to focus on today.
-              </p>
-            </div>
-            <button
-              onClick={onOpenAddModal}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-md"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Study Topic</span>
-            </button>
-          </div>
-        ) : (
-          /* Main Focused Daily Goal Component */
-          <div className="bg-stone-900/70 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 sm:p-8 text-white shadow-2xl space-y-5 text-left transition-all">
-            
-            {/* Header: Label & Topic Selector */}
-            <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/90 border border-emerald-500/40 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                  Today's Main Goal
-                </span>
-                {targetVideo.subject && (
-                  <span className="text-xs text-stone-300 font-medium truncate max-w-[150px]">
-                    {targetVideo.subject}
-                  </span>
-                )}
-              </div>
-
-              {/* Topic Selector if multiple topics */}
-              {videos.length > 1 && (
-                <select
-                  value={targetVideo.id}
-                  onChange={(e) => onSetDailyGoalVideo(e.target.value)}
-                  className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-xl border border-white/20 focus:outline-none cursor-pointer"
-                >
-                  {videos.map((v) => (
-                    <option key={v.id} value={v.id} className="text-stone-900 font-medium">
-                      🎯 {v.title} ({v.revisionCount}/{v.targetRevisionCount || 5})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Target Title */}
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-snug">
-                {targetVideo.title}
-              </h2>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-stone-200">
-                <span className="flex items-center gap-1 text-emerald-300">
-                  <Target className="w-3.5 h-3.5" />
-                  Target Progress
-                </span>
-                <span>
-                  {currentCount} / {targetCount} Revisions ({targetProgressPercent}%)
-                </span>
-              </div>
-
-              <div className="w-full bg-white/20 rounded-full h-2.5 overflow-hidden p-0.5">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${targetProgressPercent}%` }}
-                  transition={{ duration: 0.6 }}
-                  className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full"
-                />
-              </div>
-            </div>
-
-            {/* Stopwatch Toggle */}
-            <div className="pt-1">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setShowTimer(!showTimer)}
-                  className="text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Timer className="w-4 h-4" />
-                  <span>{showTimer ? 'Hide Study Timer' : 'Open Study Timer'}</span>
-                </button>
-              </div>
-
-              <AnimatePresence>
-                {showTimer && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden pt-3"
-                  >
-                    <div className="bg-stone-950/70 rounded-2xl p-3 border border-white/15 text-stone-900">
-                      <RevisionTimer
-                        totalTimeSeconds={targetVideo.totalTimeSeconds || 0}
-                        onSaveTime={(sec) => {
-                          if (onSaveProjectTime) onSaveProjectTime(targetVideo.id, sec);
-                        }}
-                        onSaveTimeAndIncrement={(sec) => {
-                          onIncrementRevision(targetVideo, sec);
-                        }}
-                        soundMuted={soundMuted}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Primary CTA Button */}
-            <div className="pt-2">
-              {isGoalCompletedToday ? (
-                <div className="w-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-semibold text-sm py-3 px-4 rounded-2xl flex items-center justify-center gap-2 backdrop-blur-md">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-300" />
-                  <span>Goal Achieved Today! Outstanding job!</span>
+            <div className="grid sm:grid-cols-[1fr_160px] gap-4">
+              <label className="block">
+                <span className="field-label">Link a revision topic <span className="font-normal normal-case tracking-normal">(optional)</span></span>
+                <div className="relative">
+                  <select value={videoId} onChange={e => { setVideoId(e.target.value); if (!intent && e.target.value) setIntent(videos.find(v => v.id === e.target.value)?.title || ''); }} className="focus-input appearance-none pr-9">
+                    <option value="">No linked topic</option>
+                    {videos.map(video => <option key={video.id} value={video.id}>{video.title}</option>)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#899080]" />
                 </div>
-              ) : (
-                <button
-                  onClick={() => onCompleteDailyGoal(targetVideo)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm sm:text-base py-3.5 px-6 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-                >
-                  <Check className="w-5 h-5 stroke-[3]" />
-                  <span>Mark +1 Revision Completed Today</span>
-                </button>
-              )}
+              </label>
+              <label className="block">
+                <span className="field-label">Focus time</span>
+                <select value={targetMinutes} onChange={e => setTargetMinutes(Number(e.target.value))} className="focus-input">
+                  <option value={25}>25 minutes</option><option value={45}>45 minutes</option><option value={60}>60 minutes</option><option value={90}>90 minutes</option>
+                </select>
+              </label>
             </div>
 
+            <button disabled={!intent.trim() && !videoId} className="primary-button w-full sm:w-auto">Set today's goal <ArrowRight className="w-4 h-4" /></button>
+          </form>
+
+          <div className="mt-6 flex items-center justify-center gap-4 text-sm text-[#7c8474]">
+            <button type="button" onClick={onNavigateToTopics} className="hover:text-[#4d5f38] flex items-center gap-1.5"><BookOpen className="w-4 h-4" /> Browse topics</button>
+            <span className="text-[#d5dacd]">•</span>
+            <button type="button" onClick={onOpenAddModal} className="hover:text-[#4d5f38] flex items-center gap-1.5"><Plus className="w-4 h-4" /> Add topic</button>
           </div>
-        )}
-
+        </div>
       </div>
+    );
+  }
 
-      {/* Bottom Footer Navigation */}
-      <div className="pt-4 pb-2 text-center">
-        <button
-          onClick={onNavigateToTopics}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 px-6 py-2.5 rounded-full transition-all cursor-pointer shadow-lg active:scale-95"
-        >
-          <BookOpen className="w-4 h-4 text-emerald-300" />
-          <span>View All Study Topics ({videos.length})</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+  const completed = dailyGoal.completed || dailyGoal.status === 'completed';
+  return (
+    <div className="focus-page">
+      <div className="w-full max-w-3xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <p className="eyebrow">Today's focus</p>
+            <p className="text-sm text-[#808779] mt-1">{today}</p>
+          </div>
+          <button onClick={onNavigateToTopics} className="subtle-button"><BookOpen className="w-4 h-4" /> Topics</button>
+        </div>
+
+        <section className={`goal-card ${completed ? 'bg-[#f5f7f2]' : ''}`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${completed ? 'bg-[#4d5f38] text-white' : 'bg-[#edf2e8] text-[#4d5f38]'}`}>
+              {completed ? <Check className="w-5 h-5" /> : <Target className="w-5 h-5" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#899080]">{completed ? 'Done for today' : 'Your one outcome'}</p>
+              <h1 className="text-2xl sm:text-4xl font-semibold tracking-[-0.035em] text-[#20251d] mt-2 leading-tight">{dailyGoal.intent || linkedVideo?.title}</h1>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 text-sm text-[#747c6d]">
+                <span>{dailyGoal.targetMinutes || 45} min target</span>
+                {linkedVideo && <span>Revision {linkedVideo.revisionCount + 1} of {linkedVideo.targetRevisionCount || 5}</span>}
+                <span className="flex items-center gap-1"><Flame className="w-4 h-4 text-[#8a6b43]" /> {streakDays} day streak</span>
+              </div>
+            </div>
+          </div>
+
+          {!completed && (
+            <>
+              <div className="my-8 h-px bg-[#e5e8df]" />
+              <div className="text-center py-2">
+                <div className="font-mono text-5xl sm:text-6xl tracking-[-0.04em] text-[#293023] tabular-nums">{formatTimer(seconds)}</div>
+                <p className="text-xs text-[#8b9283] mt-2">Focused time today</p>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-center gap-3 mt-7">
+                {dailyGoal.status !== 'learning' ? (
+                  <button onClick={() => setStatus('learning')} className="primary-button"><Play className="w-4 h-4 fill-current" /> {seconds ? 'Continue learning' : 'Start learning'}</button>
+                ) : (
+                  <button onClick={() => setStatus('paused')} className="subtle-button justify-center"><CirclePause className="w-4 h-4" /> Pause</button>
+                )}
+                <button onClick={() => { setRunning(false); onCompleteDailyGoal(linkedVideo); }} className="subtle-button justify-center"><Check className="w-4 h-4" /> Mark complete</button>
+              </div>
+            </>
+          )}
+
+          {completed && <p className="mt-6 text-[#66705c] flex items-center gap-2"><Sparkles className="w-4 h-4" /> Small consistent wins become mastery.</p>}
+        </section>
+
+        <div className="mt-5 flex justify-between items-center text-sm">
+          <p className="text-[#7d8576]">Status: <span className="font-medium text-[#4d5f38] capitalize">{dailyGoal.status?.replace('_', ' ') || 'not started'}</span></p>
+          <button onClick={() => { setSeconds(0); setRunning(false); onSaveDailyGoal({ ...dailyGoal, completed: false, completedAt: undefined, status: 'not_started' }); }} className="text-[#858c7e] hover:text-[#4d5f38] flex items-center gap-1.5"><RotateCcw className="w-3.5 h-3.5" /> Reset</button>
+        </div>
       </div>
-
     </div>
   );
 };

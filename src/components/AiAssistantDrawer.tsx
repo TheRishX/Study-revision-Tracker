@@ -101,7 +101,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="bg-white border-l-4 border-amber-950 w-full max-w-md h-full flex flex-col shadow-[[-8px_0px_0px_#451a03]]"
+          className="bg-white border-l-4 border-amber-950 w-full max-w-md h-full flex flex-col shadow-[-8px_0px_0px_#451a03]"
         >
           {/* Header */}
           <div className="p-4 sm:p-5 bg-amber-100 border-b-3 border-amber-950 flex items-center justify-between">

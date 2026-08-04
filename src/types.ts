@@ -1,4 +1,4 @@
-export type VideoStatus = 'in_progress' | 'revision_due' | 'mastered' | 'on_hold';
+export type VideoStatus = 'not_started' | 'in_progress' | 'revision_due' | 'mastered' | 'on_hold';
 
 export type RevisionReason = 
   | 'First Watch 📺' 
@@ -22,6 +22,7 @@ export interface VideoProject {
   id: string;
   title: string;
   subject?: string;
+  categoryId?: string;
   clientName?: string; // Kept optional for backward compatibility
   revisionCount: number;
   targetRevisionCount?: number; // Target revision limit e.g. 5
@@ -34,6 +35,16 @@ export interface VideoProject {
   revisionLogs?: RevisionLog[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StudyCategory {
+  id: string;
+  name: string;
+  color: string;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
+  automatic?: boolean;
 }
 
 export type ViewMode = 'grid' | 'compact_grid' | 'kanban' | 'list';
@@ -74,9 +85,22 @@ export interface ChatMessage {
 
 export interface DailyGoal {
   dateStr: string; // YYYY-MM-DD
-  videoId: string; // Selected video project ID for today
+  videoId?: string; // Optional linked revision topic
+  intent?: string; // The concrete outcome for today
+  targetMinutes?: number;
+  status?: 'not_started' | 'learning' | 'paused' | 'completed';
+  lastCheckInAt?: string;
   completed: boolean; // Has it been revised/completed today?
   completedAt?: string;
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  morningTime: string;
+  repeatMinutes: number;
+  checkInMinutes: number;
+  quietTime: string;
+  timezone: string;
 }
 
 export interface DailyReflection {
@@ -86,4 +110,3 @@ export interface DailyReflection {
   reality: string;     // What I actually achieved today
   updatedAt: string;
 }
-

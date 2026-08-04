@@ -14,6 +14,7 @@ interface KanbanViewProps {
 }
 
 const COLUMNS: { id: VideoStatus; title: string; bg: string }[] = [
+  { id: 'not_started', title: 'Not Started ○', bg: 'bg-stone-50/70' },
   { id: 'in_progress', title: 'Active Learning 📖', bg: 'bg-[#fafbfa]' },
   { id: 'revision_due', title: 'Revision Due 🔄', bg: 'bg-amber-50/50' },
   { id: 'mastered', title: 'Mastered 🏆', bg: 'bg-emerald-50/50' },
@@ -30,7 +31,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   soundMuted
 }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-start">
       {COLUMNS.map((col) => {
         const colVideos = videos.filter((v) => v.status === col.id);
 

@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, BookOpen, FileText, Sparkles, Check, Download } from 'lucide-react';
-import { VideoProject, VideoStatus } from '../types';
+import { StudyCategory, VideoProject, VideoStatus } from '../types';
 
 interface AddVideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddVideo: (video: Omit<VideoProject, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onBatchAddVideos?: (videos: Omit<VideoProject, 'id' | 'createdAt' | 'updatedAt'>[]) => void;
+  categories?: StudyCategory[];
+  initialCategoryId?: string;
 }
 
 const MERN_PRESETS = [
@@ -32,7 +34,9 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
   isOpen,
   onClose,
   onAddVideo,
-  onBatchAddVideos
+  onBatchAddVideos,
+  categories = [],
+  initialCategoryId,
 }) => {
   const [tab, setTab] = useState<'single' | 'markdown'>('single');
 
@@ -40,9 +44,19 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('Full Stack MERN');
   const [targetRevisionCount, setTargetRevisionCount] = useState(5);
-  const [status, setStatus] = useState<VideoStatus>('in_progress');
+  const [status] = useState<VideoStatus>('not_started');
   const [tags, setTags] = useState<string[]>(['MERN', 'WebDev']);
   const [notes, setNotes] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+
+  useEffect(() => {
+    if (!isOpen || !initialCategoryId) return;
+    const category = categories.find(item => item.id === initialCategoryId);
+    if (category) {
+      setCategoryId(category.automatic ? '' : category.id);
+      setSubject(category.name);
+    }
+  }, [isOpen, initialCategoryId, categories]);
 
   // Markdown Bulk Import State
   const [markdownText, setMarkdownText] = useState(DEFAULT_MD_EXAMPLE);
@@ -101,7 +115,7 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
           revisionCount: 0,
           targetRevisionCount: 5,
           totalTimeSeconds: 0,
-          status: 'in_progress',
+          status: 'not_started',
           tags: extractedTags.length ? extractedTags : [itemCategory.replace(/\s+/g, '')],
           notes: `Imported from Markdown`,
           orderIndex: Date.now() + topics.length,
@@ -137,6 +151,7 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
     onAddVideo({
       title: title.trim(),
       subject: subject.trim() || 'MERN Stack',
+      categoryId,
       revisionCount: 0,
       targetRevisionCount: Math.max(1, targetRevisionCount),
       totalTimeSeconds: 0,
@@ -277,13 +292,28 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
                     <label className="block text-xs font-semibold text-stone-800 mb-1">
                       Subject / Category
                     </label>
-                    <input
-                      type="text"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      placeholder="e.g. React, Express, MongoDB"
-                      className="w-full bg-[#fafbfa] border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:border-emerald-600"
-                    />
+                    {categories.length ? (
+                      <select
+                        value={categories.find(category => category.id === categoryId)?.id || categories.find(category => category.name.toLocaleLowerCase() === subject.toLocaleLowerCase())?.id || ''}
+                        onChange={(e) => {
+                          const category = categories.find(item => item.id === e.target.value);
+                          setCategoryId(category?.automatic ? '' : category?.id || '');
+                          setSubject(category?.name || '');
+                        }}
+                        className="w-full bg-[#fafbfa] border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:border-emerald-600"
+                      >
+                        <option value="">Uncategorized</option>
+                        {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        placeholder="e.g. React, Express, MongoDB"
+                        className="w-full bg-[#fafbfa] border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:border-emerald-600"
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -416,4 +446,3 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
     </AnimatePresence>
   );
 };
-

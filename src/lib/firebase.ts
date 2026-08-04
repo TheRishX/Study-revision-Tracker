@@ -15,7 +15,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { VideoProject, RevisionLog, VideoStatus } from '../types';
+import { VideoProject, RevisionLog, VideoStatus, StudyCategory } from '../types';
 
 // Initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -26,6 +26,7 @@ export const db = firebaseConfig.firestoreDatabaseId
   : getFirestore(app);
 
 const VIDEOS_COLLECTION = 'videos';
+const CATEGORIES_COLLECTION = 'categories';
 
 // Subscribe to videos list in real-time
 export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
@@ -39,10 +40,11 @@ export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
           id: docSnap.id,
           title: data.title || 'Untitled Topic',
           subject: data.subject || '',
-          revisionCount: typeof data.revisionCount === 'number' ? data.revisionCount : 1,
+          categoryId: data.categoryId || '',
+          revisionCount: typeof data.revisionCount === 'number' ? Math.max(0, data.revisionCount) : 0,
           targetRevisionCount: typeof data.targetRevisionCount === 'number' ? data.targetRevisionCount : 3,
           totalTimeSeconds: typeof data.totalTimeSeconds === 'number' ? data.totalTimeSeconds : 0,
-          status: (data.status as VideoStatus) || 'in_progress',
+          status: (data.status as VideoStatus) || 'not_started',
           tags: Array.isArray(data.tags) ? data.tags : [],
           deadline: data.deadline || '',
           notes: data.notes || '',
@@ -65,27 +67,56 @@ export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
   }
 }
 
+export function subscribeToCategories(callback: (categories: StudyCategory[]) => void) {
+  const categoriesQuery = query(collection(db, CATEGORIES_COLLECTION));
+  return onSnapshot(categoriesQuery, snapshot => {
+    const categories = snapshot.docs.map(categoryDoc => {
+      const data = categoryDoc.data();
+      return {
+        id: categoryDoc.id,
+        name: data.name || 'Untitled category',
+        color: data.color || '#667a4f',
+        orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : 0,
+        createdAt: data.createdAt || new Date().toISOString(),
+        updatedAt: data.updatedAt || new Date().toISOString(),
+      } as StudyCategory;
+    });
+    callback(categories.sort((a, b) => a.orderIndex - b.orderIndex));
+  }, error => console.warn('Category subscription failed:', error));
+}
+
+export async function addStudyCategory(name: string, color: string, orderIndex: number) {
+  const now = new Date().toISOString();
+  const categoryDoc = await addDoc(collection(db, CATEGORIES_COLLECTION), { name, color, orderIndex, createdAt: now, updatedAt: now });
+  return categoryDoc.id;
+}
+
+export async function updateStudyCategory(categoryId: string, updates: Partial<StudyCategory>) {
+  await updateDoc(doc(db, CATEGORIES_COLLECTION, categoryId), { ...updates, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteStudyCategory(categoryId: string) {
+  await deleteDoc(doc(db, CATEGORIES_COLLECTION, categoryId));
+}
+
+export async function updateCategoryOrders(categories: StudyCategory[]) {
+  await Promise.all(categories.filter(category => !category.automatic).map((category, index) =>
+    updateDoc(doc(db, CATEGORIES_COLLECTION, category.id), { orderIndex: index, updatedAt: new Date().toISOString() })
+  ));
+}
+
 // Add a new video project
 export async function addVideoProject(video: Omit<VideoProject, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
   const now = new Date().toISOString();
   const docRef = await addDoc(collection(db, VIDEOS_COLLECTION), {
     ...video,
-    revisionCount: Math.max(1, video.revisionCount || 1),
+    revisionCount: Math.max(0, video.revisionCount ?? 0),
     targetRevisionCount: Math.max(1, video.targetRevisionCount || 3),
     totalTimeSeconds: Math.max(0, video.totalTimeSeconds || 0),
-    status: video.status || 'in_progress',
+    status: video.status || 'not_started',
     tags: video.tags || [],
     orderIndex: video.orderIndex ?? Date.now(),
-    revisionLogs: video.revisionLogs || [
-      {
-        id: 'rev-1',
-        revisionNumber: 1,
-        reason: 'First Watch 📺',
-        notes: 'Initial study video review and note taking',
-        durationSeconds: 0,
-        timestamp: now
-      }
-    ],
+    revisionLogs: video.revisionLogs || [],
     createdAt: now,
     updatedAt: now,
   });
@@ -120,6 +151,11 @@ export async function incrementVideoRevision(
     revisionLogs: updatedLogs,
     updatedAt: now
   };
+
+  // Beginning the first revision moves a fresh topic into active learning.
+  if (currentCount === 0) {
+    updateData.status = 'in_progress';
+  }
 
   if (addedDurationSeconds > 0 || logData?.durationSeconds) {
     const timeToAdd = logData?.durationSeconds || addedDurationSeconds;

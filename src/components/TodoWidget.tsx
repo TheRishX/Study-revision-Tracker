@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckSquare, Square, Plus, Trash2, X, Check, ListTodo, Sparkles } from 'lucide-react';
+import { CheckSquare, Square, Plus, Trash2, X, ListTodo, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { soundEffects } from '../lib/sound';
 
 export interface TodoItem {
@@ -32,6 +32,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
     }
   });
   const [newText, setNewText] = useState('');
+  const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -70,6 +71,40 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
   const handleClearCompleted = () => {
     soundEffects.delete(soundMuted);
     setTodos(prev => prev.filter(t => !t.completed));
+  };
+
+  const moveTodo = (id: string, direction: -1 | 1) => {
+    setTodos(prev => {
+      const currentIndex = prev.findIndex(todo => todo.id === id);
+      const nextIndex = currentIndex + direction;
+
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= prev.length) return prev;
+
+      const reordered = [...prev];
+      [reordered[currentIndex], reordered[nextIndex]] = [reordered[nextIndex], reordered[currentIndex]];
+      return reordered;
+    });
+    soundEffects.pop(soundMuted);
+  };
+
+  const handleDrop = (targetId: string) => {
+    if (!draggedTodoId || draggedTodoId === targetId) {
+      setDraggedTodoId(null);
+      return;
+    }
+
+    setTodos(prev => {
+      const sourceIndex = prev.findIndex(todo => todo.id === draggedTodoId);
+      const targetIndex = prev.findIndex(todo => todo.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return prev;
+
+      const reordered = [...prev];
+      const [movedTodo] = reordered.splice(sourceIndex, 1);
+      reordered.splice(targetIndex, 0, movedTodo);
+      return reordered;
+    });
+    setDraggedTodoId(null);
+    soundEffects.pop(soundMuted);
   };
 
   const pendingCount = todos.filter(t => !t.completed).length;
@@ -147,15 +182,39 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
                   No tasks added yet. Type above to add one!
                 </div>
               ) : (
-                todos.map((item) => (
+                todos.map((item, index) => (
                   <div
                     key={item.id}
+                    draggable
+                    onDragStart={(event) => {
+                      setDraggedTodoId(item.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', item.id);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleDrop(item.id);
+                    }}
+                    onDragEnd={() => setDraggedTodoId(null)}
                     className={`flex items-center justify-between gap-2 p-2 rounded-xl border transition-all ${
                       item.completed
                         ? 'bg-stone-950/30 border-white/5 text-stone-500 line-through'
                         : 'bg-stone-950/60 border-white/10 text-stone-100 hover:border-emerald-500/40'
-                    }`}
+                    } ${draggedTodoId === item.id ? 'opacity-50 border-emerald-400/70' : ''}`}
                   >
+                    <div
+                      className="flex items-center gap-1 flex-shrink-0 text-stone-500 cursor-grab active:cursor-grabbing"
+                      title="Drag to reorder"
+                      aria-hidden="true"
+                    >
+                      <GripVertical className="w-3.5 h-3.5" />
+                      <span className="w-4 text-center text-[10px] font-bold tabular-nums">{index + 1}.</span>
+                    </div>
+
                     <button
                       onClick={() => handleToggleTodo(item.id)}
                       className="flex items-center gap-2 text-left flex-1 min-w-0 cursor-pointer"
@@ -168,12 +227,37 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
                       <span className="text-xs font-medium truncate">{item.text}</span>
                     </button>
 
-                    <button
-                      onClick={() => handleDeleteTodo(item.id)}
-                      className="text-stone-500 hover:text-rose-400 p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer flex-shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveTodo(item.id, -1)}
+                        disabled={index === 0}
+                        aria-label={`Move ${item.text} up`}
+                        title="Move up"
+                        className="text-stone-500 hover:text-emerald-300 disabled:opacity-20 disabled:hover:text-stone-500 p-0.5 rounded transition-colors cursor-pointer disabled:cursor-default"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveTodo(item.id, 1)}
+                        disabled={index === todos.length - 1}
+                        aria-label={`Move ${item.text} down`}
+                        title="Move down"
+                        className="text-stone-500 hover:text-emerald-300 disabled:opacity-20 disabled:hover:text-stone-500 p-0.5 rounded transition-colors cursor-pointer disabled:cursor-default"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTodo(item.id)}
+                        aria-label={`Delete ${item.text}`}
+                        title="Delete task"
+                        className="text-stone-500 hover:text-rose-400 p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

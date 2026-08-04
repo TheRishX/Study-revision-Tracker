@@ -31,7 +31,8 @@ import { AchievementsModal } from './components/AchievementsModal';
 import { StreakCalendarModal } from './components/StreakCalendarModal';
 import { DailyReflectionModal } from './components/DailyReflectionModal';
 import { EmptyState } from './components/EmptyState';
-import { TodoWidget } from './components/TodoWidget';
+import { ReminderSettingsModal } from './components/ReminderSettingsModal';
+import { syncGoalWithReminderService } from './lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -100,7 +101,10 @@ export default function App() {
   }, [totalCompletedRevisions, totalTargetRevisions]);
 
   // Daily Goal & Reflection State (persisted per YYYY-MM-DD date)
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  })();
   const [dailyGoal, setDailyGoal] = useState<DailyGoal | null>(null);
   const [dailyReflection, setDailyReflection] = useState<DailyReflection | null>(null);
 
@@ -111,6 +115,7 @@ export default function App() {
   const [isAchievementsModalOpen, setIsAchievementsModalOpen] = useState(false);
   const [isStreakCalendarOpen, setIsStreakCalendarOpen] = useState(false);
   const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
+  const [isReminderSettingsOpen, setIsReminderSettingsOpen] = useState(false);
 
   // Load daily goal & reflection from LocalStorage
   useEffect(() => {
@@ -184,27 +189,40 @@ export default function App() {
 
   // Daily Goal Handlers
   const handleSetDailyGoalVideo = (videoId: string) => {
+    const selectedVideo = videos.find(video => video.id === videoId);
     const updatedGoal: DailyGoal = {
       dateStr: todayStr,
       videoId,
+      intent: selectedVideo?.title || 'Revise today’s topic',
+      targetMinutes: 45,
+      status: 'not_started',
       completed: false
     };
     setDailyGoal(updatedGoal);
     localStorage.setItem(`dailyGoal_${todayStr}`, JSON.stringify(updatedGoal));
+    void syncGoalWithReminderService(updatedGoal);
   };
 
-  const handleCompleteDailyGoal = async (video: VideoProject) => {
+  const handleSaveDailyGoal = (updatedGoal: DailyGoal) => {
+    setDailyGoal(updatedGoal);
+    localStorage.setItem(`dailyGoal_${todayStr}`, JSON.stringify(updatedGoal));
+    void syncGoalWithReminderService(updatedGoal);
+  };
+
+  const handleCompleteDailyGoal = async (video?: VideoProject) => {
     try {
       soundEffects.fanfare(soundMuted);
-      await handleIncrementRevision(video);
+      if (video) await handleIncrementRevision(video);
       const updatedGoal: DailyGoal = {
-        dateStr: todayStr,
-        videoId: video.id,
+        ...(dailyGoal || { dateStr: todayStr, completed: false }),
+        videoId: video?.id || dailyGoal?.videoId,
+        status: 'completed',
         completed: true,
         completedAt: new Date().toISOString()
       };
       setDailyGoal(updatedGoal);
       localStorage.setItem(`dailyGoal_${todayStr}`, JSON.stringify(updatedGoal));
+      void syncGoalWithReminderService(updatedGoal);
     } catch (err) {
       console.error('Failed to complete daily goal:', err);
     }
@@ -347,12 +365,17 @@ export default function App() {
 
   // Filter and Sort Videos
   const filteredAndSortedVideos = useMemo(() => {
+    const q = searchQuery.trim().toLocaleLowerCase();
+    const searchableText = (value: unknown) => String(value ?? '').toLocaleLowerCase();
+
     let result = videos.filter(v => {
-      const q = searchQuery.toLowerCase();
+      if (!q) return true;
+
       return (
-        v.title.toLowerCase().includes(q) ||
-        (v.subject && v.subject.toLowerCase().includes(q)) ||
-        (v.tags && v.tags.some(t => t.toLowerCase().includes(q)))
+        searchableText(v.title).includes(q) ||
+        searchableText(v.subject).includes(q) ||
+        (Array.isArray(v.tags) && v.tags.some(tag => searchableText(tag).includes(q))) ||
+        searchableText(v.notes).includes(q)
       );
     });
 
@@ -375,20 +398,7 @@ export default function App() {
   }, [videos, searchQuery, sortOption]);
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col font-sans selection:bg-emerald-600 selection:text-white bg-stone-900 overflow-x-hidden">
-      
-      {/* Background Wallpaper Image for Momentum UI */}
-      {currentPage === 'overview' && (
-        <div className="fixed inset-0 z-0 pointer-events-none">
-          <img
-            src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2000&auto=format&fit=crop"
-            alt="Momentum Serene Landscape"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover brightness-[0.70] contrast-[1.05]"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/30 to-stone-950/60" />
-        </div>
-      )}
+    <div className="relative min-h-screen w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white bg-[#fbfcf9] overflow-x-hidden">
 
       {/* Header Navigation */}
       <Header
@@ -415,17 +425,18 @@ export default function App() {
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onOpenStreakCalendarModal={() => setIsStreakCalendarOpen(true)}
         onOpenReflectionModal={() => setIsReflectionModalOpen(true)}
+        onOpenReminderSettings={() => setIsReminderSettingsOpen(true)}
       />
 
       {/* Main Content View Container */}
       <main className={`flex-1 w-full relative z-10 ${
-        currentPage === 'overview' ? 'flex flex-col justify-between' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-6 bg-[#fafbfa] rounded-t-3xl min-h-[calc(100vh-80px)]'
+        currentPage === 'overview' ? 'flex flex-col' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
       }`}>
         
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center text-white">
-            <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3" />
-            <p className="font-semibold text-stone-300 text-xs">Loading study workspace...</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center text-[#59634f]">
+            <div className="w-7 h-7 border-2 border-[#4d5f38] border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="font-medium text-xs">Preparing today…</p>
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -443,19 +454,10 @@ export default function App() {
                   videos={videos}
                   dailyGoal={dailyGoal}
                   streakDays={streakDays}
-                  approvedCount={approvedCount}
-                  totalCompletedRevisions={totalCompletedRevisions}
-                  totalTargetRevisions={totalTargetRevisions}
-                  overallProgressPercent={overallProgressPercent}
                   onNavigateToTopics={() => setCurrentPage('topics')}
                   onOpenAddModal={() => setIsAddModalOpen(true)}
-                  onSetDailyGoalVideo={handleSetDailyGoalVideo}
+                  onSaveDailyGoal={handleSaveDailyGoal}
                   onCompleteDailyGoal={handleCompleteDailyGoal}
-                  onIncrementRevision={handleIncrementRevision}
-                  onSaveProjectTime={handleSaveProjectTime}
-                  onOpenStreakCalendarModal={() => setIsStreakCalendarOpen(true)}
-                  onOpenReflectionModal={() => setIsReflectionModalOpen(true)}
-                  soundMuted={soundMuted}
                 />
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
@@ -560,9 +562,6 @@ export default function App() {
 
       </main>
 
-      {/* Bottom Right Floating Todo Widget */}
-      <TodoWidget soundMuted={soundMuted} />
-
       {/* Modals */}
       <AddVideoModal
         isOpen={isAddModalOpen}
@@ -614,6 +613,12 @@ export default function App() {
         onClose={() => setIsReflectionModalOpen(false)}
         dailyReflection={dailyReflection}
         onSaveDailyReflection={handleSaveDailyReflection}
+      />
+
+      <ReminderSettingsModal
+        isOpen={isReminderSettingsOpen}
+        onClose={() => setIsReminderSettingsOpen(false)}
+        dailyGoal={dailyGoal}
       />
 
     </div>
