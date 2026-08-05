@@ -89,20 +89,20 @@ export const OverviewDashboard: React.FC<Props> = ({
   return (
     <div className="momentum-page" style={{ backgroundImage: `url(${wallpaper})` }}>
       <div className="momentum-backdrop" />
-      <div className="relative z-10 min-h-[calc(100vh-65px)] flex flex-col px-4 sm:px-8 py-5 sm:py-7 text-white">
-        <div className="mx-auto w-full max-w-5xl flex items-center justify-between gap-4 pr-24 sm:pr-32">
+      <div className="momentum-content relative z-10 flex flex-col px-4 sm:px-8 text-white">
+        <div className="momentum-topline mx-auto w-full max-w-5xl flex items-center justify-between gap-4 pr-24 sm:pr-32">
           <p className="text-xs sm:text-sm font-medium text-white/80">{today}</p>
           <p className="text-[11px] sm:text-xs text-white/75 text-right">
             <strong className="text-white">{yearStats.daysLeft}</strong> days left this year · <strong className="text-white">{yearStats.focusedDays}</strong> without Sundays
           </p>
         </div>
 
-        <main className="flex-1 flex items-center justify-center py-10 sm:py-14">
+        <main className="momentum-main flex-1 flex items-center justify-center min-h-0">
           {!dailyGoal ? (
-            <div className="w-full max-w-2xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">One day closer to your engineering career</p>
+            <div className="momentum-goal-form w-full max-w-2xl text-center">
+              <p className="momentum-supporting text-xs font-semibold uppercase tracking-[0.22em] text-white/70">One day closer to your engineering career</p>
               <h1 className="momentum-title mt-4">What will you master today?</h1>
-              <p className="text-sm sm:text-base text-white/75 mt-3">Choose one meaningful outcome. Give it your full attention.</p>
+              <p className="momentum-supporting text-sm sm:text-base text-white/75 mt-3">Choose one meaningful outcome. Give it your full attention.</p>
 
               <form onSubmit={saveGoal} className="momentum-panel mt-8 text-left space-y-5">
                 <label className="block">
@@ -130,16 +130,16 @@ export const OverviewDashboard: React.FC<Props> = ({
                 <button disabled={!intent.trim() && !videoId} className="momentum-primary w-full sm:w-auto">Set today’s goal <ArrowRight className="w-4 h-4" /></button>
               </form>
 
-              <div className="mt-5 flex justify-center gap-5 text-xs text-white/65">
+              <div className="momentum-secondary-links mt-5 flex justify-center gap-5 text-xs text-white/65">
                 <button type="button" onClick={onNavigateToTopics} className="hover:text-white flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Browse topics</button>
                 <button type="button" onClick={onOpenAddModal} className="hover:text-white flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add topic</button>
               </div>
             </div>
           ) : (
-            <div className="w-full max-w-3xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/65">{completed ? 'Today’s promise kept' : 'Your one focus'}</p>
-              <h1 className="text-2xl sm:text-4xl font-semibold tracking-[-0.04em] leading-tight mt-3 drop-shadow-lg">{dailyGoal.intent || linkedVideo?.title}</h1>
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-3 text-xs text-white/70">
+            <div className="momentum-active-goal w-full max-w-3xl text-center">
+              <p className="momentum-supporting text-xs font-semibold uppercase tracking-[0.22em] text-white/65">{completed ? 'Today’s promise kept' : 'Your one focus'}</p>
+              <h1 className="momentum-active-title text-2xl sm:text-4xl font-semibold tracking-[-0.04em] leading-tight mt-3 drop-shadow-lg">{dailyGoal.intent || linkedVideo?.title}</h1>
+              <div className="momentum-goal-meta flex flex-wrap justify-center gap-x-4 gap-y-2 mt-3 text-xs text-white/70">
                 <span>{dailyGoal.targetMinutes || 45} minute target</span>
                 {linkedVideo && <span>Revision {linkedVideo.revisionCount + 1}/{linkedVideo.targetRevisionCount || 5}</span>}
                 <span className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-amber-300" /> {streakDays} day streak</span>
@@ -157,7 +157,7 @@ export const OverviewDashboard: React.FC<Props> = ({
               </div>
 
               {!completed ? (
-                <div className="flex flex-col sm:flex-row justify-center gap-3 mt-7">
+                <div className="momentum-actions flex flex-col sm:flex-row justify-center gap-3 mt-7">
                   {dailyGoal.status !== 'learning' ? (
                     <button onClick={() => setStatus('learning')} className="momentum-primary"><Play className="w-4 h-4 fill-current" /> {seconds ? 'Continue focus' : 'Start focus'}</button>
                   ) : (
@@ -167,12 +167,12 @@ export const OverviewDashboard: React.FC<Props> = ({
                 </div>
               ) : <p className="mt-7 text-sm text-white/80 flex items-center justify-center gap-2"><Sparkles className="w-4 h-4" /> Consistency is how exceptional careers are built.</p>}
 
-              <button onClick={onNavigateToTopics} className="mt-6 text-xs text-white/60 hover:text-white inline-flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Open revision topics</button>
+              <button onClick={onNavigateToTopics} className="momentum-secondary-links mt-6 text-xs text-white/60 hover:text-white inline-flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Open revision topics</button>
             </div>
           )}
         </main>
 
-        <p className="text-center text-[11px] sm:text-xs text-white/55">Build quietly. Learn deeply. Let your work open the right doors.</p>
+        <p className="momentum-footer text-center text-[11px] sm:text-xs text-white/55">Build quietly. Learn deeply. Let your work open the right doors.</p>
       </div>
     </div>
   );

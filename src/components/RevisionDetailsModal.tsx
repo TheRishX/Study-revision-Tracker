@@ -74,7 +74,7 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
-          className="bg-white border border-stone-200 rounded-3xl p-6 max-w-xl w-full shadow-lg max-h-[90vh] flex flex-col"
+          className="revision-details-modal bg-white border border-stone-200 rounded-3xl p-6 max-w-xl w-full shadow-lg max-h-[90dvh] flex flex-col"
         >
           {/* Header */}
           <div className="flex items-start justify-between pb-3 border-b border-stone-200">
@@ -103,28 +103,28 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
 
           {/* Quick Stats Summary */}
           <div className="grid grid-cols-3 gap-2.5 my-3.5">
-            <div className="bg-[#fafbfa] border border-stone-200 rounded-xl p-2.5 text-center">
+            <div className="revision-stat-card border rounded-xl p-2.5 text-center">
               <span className="text-[10px] font-semibold text-stone-500 uppercase block">Revisions</span>
               <span className="text-lg font-bold text-stone-900">
                 {video.revisionCount} / {video.targetRevisionCount || 5}
               </span>
             </div>
 
-            <div className="bg-[#fafbfa] border border-stone-200 rounded-xl p-2.5 text-center">
+            <div className="revision-stat-card border rounded-xl p-2.5 text-center">
               <span className="text-[10px] font-semibold text-stone-500 uppercase block">Total Time</span>
               <span className="text-sm font-bold text-stone-900 mt-0.5 block">
                 {formatTimeSeconds(video.totalTimeSeconds || 0)}
               </span>
             </div>
 
-            <div className="bg-[#fafbfa] border border-stone-200 rounded-xl p-2.5 text-center">
+            <div className="revision-stat-card border rounded-xl p-2.5 text-center">
               <span className="text-[10px] font-semibold text-stone-500 uppercase block">Total Logs</span>
               <span className="text-lg font-bold text-stone-900">{logs.length}</span>
             </div>
           </div>
 
           {video.notes && (
-            <div className="bg-[#fafbfa] border border-stone-200/80 rounded-xl p-3 mb-3">
+            <div className="revision-note-card border rounded-xl p-3 mb-3">
               <span className="text-[10px] font-bold text-[#4f6435] uppercase block mb-0.5">Topic Note</span>
               <p className="text-xs text-stone-800 leading-relaxed">{video.notes}</p>
             </div>
@@ -163,7 +163,7 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
               Log Study Session #{video.revisionCount + 1}
             </button>
           ) : (
-            <form onSubmit={handleAddRevisionSubmit} className="bg-[#fafbfa] border border-stone-200 rounded-2xl p-3.5 mb-3 space-y-2.5">
+            <form onSubmit={handleAddRevisionSubmit} className="revision-log-form border rounded-2xl p-3.5 mb-3 space-y-2.5">
               <h4 className="font-bold text-stone-900 text-xs">
                 Logging Revision #{video.revisionCount + 1}
               </h4>
@@ -177,7 +177,7 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
                     className={`text-[11px] font-medium px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
                       selectedReason === reason
                         ? 'bg-[#4f6435] text-white border-[#4f6435]'
-                        : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100'
+                        : 'revision-reason-button text-stone-700 border-stone-200'
                     }`}
                   >
                     {reason}
@@ -190,14 +190,14 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
                 value={logNotes}
                 onChange={(e) => setLogNotes(e.target.value)}
                 placeholder="Session notes (e.g. Practiced 5 problems)..."
-                className="w-full bg-white border border-stone-200 rounded-xl px-3 py-1.5 text-xs font-normal text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#4f6435]"
+                className="revision-log-input w-full border rounded-xl px-3 py-1.5 text-xs font-normal placeholder-stone-400 focus:outline-none focus:border-[#4f6435]"
               />
 
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setIsAddingLog(false)}
-                  className="px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-100 rounded-lg"
+                  className="revision-cancel-button px-2.5 py-1 text-xs rounded-lg"
                 >
                   Cancel
                 </button>
@@ -213,7 +213,7 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
 
           {/* Logs List Stream */}
           <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-            <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-wider flex items-center gap-1 sticky top-0 bg-white py-1">
+            <h3 className="revision-log-heading text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 sticky top-0 py-1">
               <History className="w-3.5 h-3.5 text-[#4f6435]" />
               Revision Logs
             </h3>
@@ -226,7 +226,7 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
               logs.slice().reverse().map((log) => (
                 <div
                   key={log.id}
-                  className="bg-[#fafbfa] border border-stone-200/80 rounded-xl p-2.5 text-xs"
+                  className="revision-log-card border rounded-xl p-2.5 text-xs"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -271,7 +271,7 @@ export const RevisionDetailsModal: React.FC<RevisionDetailsModalProps> = ({
           <div className="pt-3 border-t border-stone-200 mt-3 flex justify-end">
             <button
               onClick={onClose}
-              className="bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold px-4 py-1.5 rounded-xl text-xs cursor-pointer"
+              className="revision-done-button font-semibold px-4 py-1.5 rounded-xl text-xs cursor-pointer"
             >
               Done
             </button>

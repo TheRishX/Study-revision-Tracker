@@ -18,7 +18,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, viewMode, setViewMode, sortOption, setSortOption, searchQuery, setSearchQuery, onOpenAddModal, onOpenReminderSettings, onOpenSettings }) => (
-  <header className={`app-header sticky top-0 z-30 backdrop-blur-xl border-b ${currentPage === 'overview' ? 'momentum-header' : ''}`}>
+  <header className={`app-header sticky top-0 z-30 shrink-0 backdrop-blur-xl border-b ${currentPage === 'overview' ? 'momentum-header' : ''}`}>
     <div className="max-w-6xl mx-auto h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
       <button onClick={() => setCurrentPage('overview')} className="flex items-center gap-2.5 text-left">
         <span className="w-8 h-8 rounded-xl bg-[#4d5f38] text-white flex items-center justify-center"><Target className="w-4 h-4" /></span>

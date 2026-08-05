@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Bell, BellOff, Check, Clock, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Bell, BellOff, Check, Clock, Music2, Play, Trash2, Upload, X } from 'lucide-react';
 import { DailyGoal, ReminderSettings } from '../types';
-import { disablePushReminders, enablePushReminders, loadReminderSettings, syncGoalWithReminderService } from '../lib/notifications';
+import { disablePushReminders, enablePushReminders, getNotificationReadiness, loadReminderSettings, syncGoalWithReminderService } from '../lib/notifications';
+import { playSelectedAlarmSound, removeAlarmSound, saveAlarmSound } from '../lib/alarmSound';
 
 interface Props {
   isOpen: boolean;
@@ -13,6 +14,8 @@ export const ReminderSettingsModal: React.FC<Props> = ({ isOpen, onClose, dailyG
   const [settings, setSettings] = useState<ReminderSettings>(() => loadReminderSettings());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const fileInput = useRef<HTMLInputElement>(null);
+  const readiness = getNotificationReadiness();
 
   if (!isOpen) return null;
 
@@ -35,6 +38,32 @@ export const ReminderSettingsModal: React.FC<Props> = ({ isOpen, onClose, dailyG
     await disablePushReminders();
     setSettings(current => ({ ...current, enabled: false }));
     setMessage('Reminders paused.');
+  };
+
+  const chooseSound = async (file?: File) => {
+    if (!file) return;
+    try {
+      const alarmSoundName = await saveAlarmSound(file);
+      setSettings(current => ({ ...current, alarmSoundName }));
+      setMessage(`“${alarmSoundName}” is saved on this device. Use Test sound to preview it.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save that sound.');
+    }
+  };
+
+  const testSound = async () => {
+    try {
+      const played = await playSelectedAlarmSound();
+      if (!played) setMessage('Choose an audio file first.');
+    } catch {
+      setMessage('Your browser could not play this audio file. Try an MP3, WAV, or M4A file.');
+    }
+  };
+
+  const clearSound = async () => {
+    await removeAlarmSound();
+    setSettings(current => ({ ...current, alarmSoundName: undefined }));
+    setMessage('Custom alarm sound removed from this device.');
   };
 
   return (
@@ -75,14 +104,31 @@ export const ReminderSettingsModal: React.FC<Props> = ({ isOpen, onClose, dailyG
             <input type="time" value={settings.quietTime} onChange={e => setSettings({ ...settings, quietTime: e.target.value })} className="focus-input" />
           </label>
 
+          <div>
+            <span className="field-label">Custom alarm sound</span>
+            <input ref={fileInput} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" className="hidden" onChange={event => void chooseSound(event.target.files?.[0])} />
+            <div className="mt-1 flex items-center gap-2">
+              <button type="button" onClick={() => fileInput.current?.click()} className="focus-input flex items-center justify-center gap-2 text-sm">
+                <Upload className="w-4 h-4" /> {settings.alarmSoundName ? 'Replace sound' : 'Choose audio file'}
+              </button>
+              {settings.alarmSoundName && <>
+                <button type="button" onClick={() => void testSound()} className="p-3 rounded-xl border border-[#dfe5d8] text-[#4d5f38] hover:bg-[#f5f7f2]" aria-label="Test custom alarm sound"><Play className="w-4 h-4" /></button>
+                <button type="button" onClick={() => void clearSound()} className="p-3 rounded-xl border border-[#dfe5d8] text-[#8b5b45] hover:bg-[#fdf5f1]" aria-label="Remove custom alarm sound"><Trash2 className="w-4 h-4" /></button>
+              </>}
+            </div>
+            {settings.alarmSoundName && <p className="mt-2 text-xs text-[#66705c] flex gap-1.5 items-center"><Music2 className="w-3.5 h-3.5" />{settings.alarmSoundName}</p>}
+          </div>
+
           <div className="rounded-2xl bg-[#f5f7f2] px-4 py-3 flex gap-3 text-xs leading-relaxed text-[#66705c]">
             <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-            <p>Background alarms use your device's notification system. Allow notifications and keep this app installed or permitted by your browser. Silent or Focus modes can still suppress sound.</p>
+            <p>Push reminders can arrive with the site closed while your browser/device supports push. They use your device’s notification sound. A custom file can play while Rewise is open, but browsers do not allow a website to play custom audio after it has been closed. Silent or Focus modes can still suppress alerts.</p>
           </div>
+
+          {!readiness.supported && <p className="text-sm text-[#8b5b45]">{readiness.message}</p>}
 
           {message && <p className={`text-sm ${settings.enabled ? 'text-[#4d5f38]' : 'text-[#8b5b45]'}`}>{message}</p>}
 
-          <button onClick={save} disabled={saving} className="primary-button w-full">
+          <button onClick={save} disabled={saving || !readiness.supported || readiness.permission === 'denied'} className="primary-button w-full">
             {settings.enabled ? <Check className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
             {saving ? 'Activating…' : settings.enabled ? 'Save reminder schedule' : 'Enable background reminders'}
           </button>

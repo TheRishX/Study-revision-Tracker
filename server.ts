@@ -1,8 +1,10 @@
+import 'dotenv/config';
 import express from "express";
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import webpush from "web-push";
+import { promises as fs } from 'node:fs';
 
 type ReminderClient = {
   subscription: webpush.PushSubscription;
@@ -20,6 +22,31 @@ type ReminderClient = {
 };
 
 const reminderClients = new Map<string, ReminderClient>();
+const reminderStorePath = process.env.REMINDER_STORE_PATH || path.join(process.cwd(), '.data', 'reminder-clients.json');
+
+async function loadReminderClients() {
+  try {
+    const contents = await fs.readFile(reminderStorePath, 'utf8');
+    const savedClients = JSON.parse(contents) as Array<[string, ReminderClient]>;
+    if (!Array.isArray(savedClients)) return;
+    savedClients.forEach(([endpoint, client]) => {
+      if (endpoint && client?.subscription?.endpoint && client.settings) reminderClients.set(endpoint, client);
+    });
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') console.warn('Could not read reminder store:', error?.message || error);
+  }
+}
+
+let reminderSave = Promise.resolve();
+function persistReminderClients() {
+  reminderSave = reminderSave.then(async () => {
+    await fs.mkdir(path.dirname(reminderStorePath), { recursive: true });
+    const temporaryPath = `${reminderStorePath}.tmp`;
+    await fs.writeFile(temporaryPath, JSON.stringify([...reminderClients]), { mode: 0o600 });
+    await fs.rename(temporaryPath, reminderStorePath);
+  }).catch(error => console.error('Could not persist reminder store:', error?.message || error));
+  return reminderSave;
+}
 
 function dateAndMinutes(timezone: string) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -41,32 +68,50 @@ async function startServer() {
 
   app.use(express.json());
 
-  const generatedVapid = webpush.generateVAPIDKeys();
-  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || generatedVapid.publicKey;
-  const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || generatedVapid.privateKey;
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:reminders@rewise.app', vapidPublicKey, vapidPrivateKey);
+  const hasVapidConfiguration = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT);
+  // Development remains usable without secrets. Production must use stable VAPID keys.
+  const generatedVapid = hasVapidConfiguration ? null : webpush.generateVAPIDKeys();
+  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || generatedVapid!.publicKey;
+  const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || generatedVapid!.privateKey;
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:reminders@localhost', vapidPublicKey, vapidPrivateKey);
+  await loadReminderClients();
 
-  app.get('/api/notifications/public-key', (_req, res) => res.json({ publicKey: vapidPublicKey }));
+  app.get('/api/notifications/status', (_req, res) => {
+    if (process.env.NODE_ENV === 'production' && !hasVapidConfiguration) {
+      return res.status(503).json({ ready: false, error: 'Reminders are not configured on this server. Set stable VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT, then redeploy.' });
+    }
+    res.json({ ready: true, persistentStore: process.env.NODE_ENV !== 'production' || Boolean(process.env.REMINDER_STORE_PATH) });
+  });
 
-  app.post('/api/notifications/subscribe', (req, res) => {
+  app.get('/api/notifications/public-key', (_req, res) => {
+    if (process.env.NODE_ENV === 'production' && !hasVapidConfiguration) {
+      return res.status(503).json({ error: 'Reminders are not configured on this server. Contact the site owner.' });
+    }
+    res.json({ publicKey: vapidPublicKey });
+  });
+
+  app.post('/api/notifications/subscribe', async (req, res) => {
     const { subscription, settings } = req.body || {};
     if (!subscription?.endpoint || !settings) return res.status(400).json({ error: 'Invalid subscription' });
     reminderClients.set(subscription.endpoint, { subscription, settings: { ...settings, enabled: true }, goal: null });
+    await persistReminderClients();
     res.json({ ok: true });
   });
 
-  app.post('/api/notifications/goal', (req, res) => {
+  app.post('/api/notifications/goal', async (req, res) => {
     const client = reminderClients.get(req.body?.endpoint);
     if (client) {
       client.goal = req.body.goal || null;
       client.lastGoalPromptAt = undefined;
       client.lastCheckInAt = Date.now();
+      await persistReminderClients();
     }
     res.json({ ok: true });
   });
 
-  app.post('/api/notifications/unsubscribe', (req, res) => {
+  app.post('/api/notifications/unsubscribe', async (req, res) => {
     reminderClients.delete(req.body?.endpoint);
+    await persistReminderClients();
     res.json({ ok: true });
   });
 
@@ -91,6 +136,7 @@ async function startServer() {
               url: '/',
             }));
             client.lastGoalPromptAt = now;
+            void persistReminderClients();
           }
         } else if (!client.goal?.completed) {
           const checkInMs = client.settings.checkInMinutes * 60_000;
@@ -102,10 +148,14 @@ async function startServer() {
               url: '/',
             }));
             client.lastCheckInAt = now;
+            void persistReminderClients();
           }
         }
       } catch (error: any) {
-        if (error?.statusCode === 404 || error?.statusCode === 410) reminderClients.delete(endpoint);
+        if (error?.statusCode === 404 || error?.statusCode === 410) {
+          reminderClients.delete(endpoint);
+          void persistReminderClients();
+        }
         else console.warn('Reminder delivery failed:', error?.message || error);
       }
     }

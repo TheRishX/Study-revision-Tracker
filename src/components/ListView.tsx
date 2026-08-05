@@ -60,7 +60,7 @@ export const ListView: React.FC<ListViewProps> = ({
   };
 
   return (
-    <div className="bg-white border border-stone-200/90 rounded-2xl shadow-xs overflow-hidden">
+    <div className="topics-table bg-white border border-stone-200/90 rounded-2xl shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[620px]">
           <thead>
@@ -149,7 +149,7 @@ export const ListView: React.FC<ListViewProps> = ({
                     <select
                       value={video.status}
                       onChange={(e) => onUpdateStatus(video.id, e.target.value as VideoStatus)}
-                      className="text-[11px] font-medium px-2 py-0.5 rounded-lg border border-stone-200 bg-[#fafbfa] text-stone-800 focus:outline-none cursor-pointer"
+                      className="topic-status-control text-[11px] font-medium px-2 py-0.5 rounded-lg border focus:outline-none cursor-pointer"
                     >
                       <option value="not_started">○ Not Started</option>
                       <option value="in_progress">📖 Learning</option>
@@ -199,7 +199,7 @@ export const ListView: React.FC<ListViewProps> = ({
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => onOpenDetails(video)}
-                        className="bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-[11px] px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1"
+                        className="topic-logs-button font-medium text-[11px] px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1"
                         title="View Details & Timer"
                       >
                         <Eye className="w-3 h-3 text-stone-500" />

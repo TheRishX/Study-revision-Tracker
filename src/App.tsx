@@ -41,6 +41,7 @@ import { ReminderSettingsModal } from './components/ReminderSettingsModal';
 import { CategorySettingsPage } from './components/CategorySettingsPage';
 import { TodoWidget } from './components/TodoWidget';
 import { syncGoalWithReminderService } from './lib/notifications';
+import { playSelectedAlarmSound } from './lib/alarmSound';
 import { motion, AnimatePresence } from 'motion/react';
 
 const MAJOR_CATEGORIES = [
@@ -68,6 +69,19 @@ export default function App() {
   // Navigation & Page State
   const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
+
+  // Service workers cannot play audio. When the app is already open, they notify
+  // this page about a push so the user's locally selected sound can be played.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'REMINDER_RECEIVED' && document.visibilityState === 'visible') {
+        void playSelectedAlarmSound().catch(() => {});
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, []);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [newTopicCategoryId, setNewTopicCategoryId] = useState('');
@@ -566,7 +580,9 @@ export default function App() {
   }, [videos, searchQuery, sortOption, selectedCategoryId, categoryForVideo]);
 
   return (
-    <div className="app-shell relative min-h-screen w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white overflow-x-hidden">
+    <div className={`app-shell relative w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white overflow-x-hidden ${
+      currentPage === 'overview' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'
+    }`}>
 
       {/* Header Navigation */}
       <Header

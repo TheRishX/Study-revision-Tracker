@@ -105,6 +105,8 @@ export interface ReminderSettings {
   checkInMinutes: number;
   quietTime: string;
   timezone: string;
+  /** The selected file is stored only on this device, never uploaded. */
+  alarmSoundName?: string;
 }
 
 export interface DailyReflection {

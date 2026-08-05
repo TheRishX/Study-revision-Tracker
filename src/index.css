@@ -58,13 +58,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .momentum-page {
   position: relative;
-  min-height: calc(100vh - 65px);
+  height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
+  min-height: 0;
   overflow: hidden;
   background-size: cover;
   background-position: center;
   background-color: #253027;
 }
 .momentum-backdrop { position: absolute; inset: 0; background: var(--wallpaper-overlay); }
+.momentum-content { height: 100%; min-height: 0; padding-block: clamp(16px, 3vh, 28px); }
+.momentum-main { padding-block: clamp(18px, 5vh, 56px); overflow: hidden; }
 .momentum-title { font-size: clamp(2.5rem, 7vw, 5.5rem); line-height: .96; letter-spacing: -.055em; font-weight: 650; text-shadow: 0 8px 30px rgba(0,0,0,.3); }
 .momentum-panel { padding: clamp(20px, 4vw, 30px); border: 1px solid rgba(255,255,255,.2); border-radius: 24px; background: rgba(12,18,13,.48); box-shadow: 0 24px 70px rgba(0,0,0,.2); backdrop-filter: blur(20px); }
 [data-theme="light"] .momentum-panel { background: rgba(255,255,255,.14); }
@@ -86,6 +90,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .focus-ring-progress { stroke: rgba(244,248,240,.95); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
 .focus-ring-running::after { content: ""; position: absolute; inset: 22px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); animation: focus-breathe 4s ease-in-out infinite; }
 @keyframes focus-breathe { 0%, 100% { transform: scale(.97); opacity: .35; } 50% { transform: scale(1.03); opacity: .8; } }
+.momentum-todo-panel { max-height: calc(100dvh - 145px); }
+.momentum-todo-panel > div:nth-last-child(1) { overscroll-behavior: contain; }
 .theme-choice { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--border); border-radius: 12px; color: var(--muted); background: var(--surface-soft); font-size: .75rem; font-weight: 600; }
 .theme-choice-active { color: white; border-color: #4d5f38; background: #4d5f38; }
 
@@ -130,9 +136,113 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 [data-theme="dark"] .settings-page [class*="bg-[#f"] { background-color: var(--surface-soft) !important; }
 [data-theme="dark"] .settings-page [class*="border-[#"] { border-color: var(--border) !important; }
 
+/* Topic list controls use semantic colors so native controls remain readable in both themes. */
+.topics-table { background: var(--surface); border-color: var(--border); color: var(--text); }
+.topics-table thead tr { background: var(--surface-soft); border-color: var(--border); }
+.topics-table tbody { border-color: var(--border); }
+.topic-status-control,
+.topic-logs-button {
+  background: var(--surface-soft);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.topic-status-control:hover,
+.topic-logs-button:hover { background: color-mix(in srgb, var(--surface-soft) 82%, #81956c 18%); }
+[data-theme="dark"] .topic-status-control { color-scheme: dark; }
+[data-theme="dark"] .topics-table tbody tr:hover { background: rgba(119, 143, 96, .10); }
+
+/* Revision log modal surfaces must move together with their text in dark mode. */
+.revision-details-modal { background: var(--surface); color: var(--text); border-color: var(--border); }
+.revision-stat-card,
+.revision-note-card,
+.revision-log-form,
+.revision-log-card {
+  background: var(--surface-soft);
+  color: var(--text);
+  border-color: var(--border);
+}
+.revision-log-heading { background: var(--surface); color: var(--muted); }
+.revision-log-input,
+.revision-reason-button,
+.revision-cancel-button,
+.revision-done-button {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.revision-reason-button:hover,
+.revision-cancel-button:hover,
+.revision-done-button:hover { background: color-mix(in srgb, var(--surface-soft) 82%, #81956c 18%); }
+.revision-log-input { color-scheme: light; }
+[data-theme="dark"] .revision-log-input { color-scheme: dark; }
+[data-theme="dark"] .revision-details-modal .text-\[\#4f6435\] { color: #a9bf91 !important; }
+
+/* The timer intentionally stays warm and high-contrast inside either app theme. */
+[data-theme] .revision-timer { background: rgba(254, 243, 199, .96); border-color: #451a03; }
+[data-theme] .revision-timer-display { background: #fffdf7 !important; border-color: #451a03; }
+
+@media (max-height: 760px) {
+  .momentum-content { padding-block: 13px; }
+  .momentum-main { padding-block: 12px; }
+  .momentum-title { font-size: clamp(2.25rem, 6vw, 4.5rem); }
+  .momentum-panel { margin-top: 20px; padding: 18px 20px; }
+  .momentum-panel.space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 14px; }
+  .focus-ring { width: clamp(164px, 23vh, 196px); }
+  .momentum-active-goal .focus-ring { margin-top: 18px; }
+  .momentum-actions { margin-top: 18px; }
+  .momentum-secondary-links { margin-top: 14px; }
+}
+
+@media (max-height: 620px) {
+  .momentum-content { padding-block: 10px; }
+  .momentum-main { padding-block: 7px; }
+  .momentum-supporting, .momentum-footer { display: none; }
+  .momentum-title { margin-top: 0; font-size: clamp(2rem, 7vw, 3.75rem); }
+  .momentum-panel { margin-top: 14px; padding: 14px 18px; border-radius: 19px; }
+  .momentum-panel.space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 10px; }
+  .momentum-goal-input { padding-bottom: 7px; font-size: 1.05rem; }
+  .momentum-input { height: 36px; }
+  .momentum-primary, .momentum-secondary { min-height: 38px; }
+  .momentum-active-title { margin-top: 4px; font-size: clamp(1.45rem, 5vw, 2.5rem); }
+  .momentum-goal-meta { margin-top: 6px; }
+  .focus-ring { width: clamp(138px, 25vh, 164px); }
+  .momentum-active-goal .focus-ring { margin-top: 10px; }
+  .momentum-actions { margin-top: 10px; flex-direction: row; }
+  .momentum-secondary-links { margin-top: 9px; }
+}
+
+@media (max-height: 480px) {
+  .momentum-topline > p:first-child, .momentum-secondary-links, .momentum-footer { display: none; }
+  .momentum-topline { justify-content: flex-end; }
+  .momentum-main { padding-block: 2px; }
+  .momentum-title { font-size: clamp(1.75rem, 6vw, 2.8rem); }
+  .momentum-panel { margin-top: 8px; padding: 10px 14px; }
+  .momentum-label { margin-bottom: 3px; }
+  .momentum-goal-input { padding: 3px 0 5px; }
+  .momentum-goal-form .momentum-panel > div { grid-template-columns: minmax(0, 1fr) 130px; }
+  .focus-ring { width: 112px; }
+  .focus-ring-running::after { inset: 14px; }
+  .momentum-active-goal .focus-ring { margin-top: 5px; }
+  .momentum-actions { margin-top: 6px; gap: 7px; }
+  .momentum-primary, .momentum-secondary { min-height: 34px; padding-inline: 13px; }
+}
+
+@media (min-width: 1600px) and (min-height: 900px) {
+  .momentum-content { padding-inline: 5vw; }
+  .momentum-title { font-size: clamp(5rem, 5.5vw, 7rem); }
+  .momentum-goal-form { max-width: 820px; }
+  .momentum-active-goal { max-width: 920px; }
+  .focus-ring { width: 250px; }
+}
+
 @media (max-width: 640px) {
   .focus-page { align-items: flex-start; padding-top: 42px; }
   .goal-card { border-radius: 22px; }
+  .momentum-content { padding-inline: 14px; }
+  .momentum-topline { padding-right: 82px; gap: 10px; }
+  .momentum-topline p { line-height: 1.25; }
+  .momentum-panel { border-radius: 20px; }
+  .momentum-todo { right: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation-duration: .01ms !important; } }

@@ -87,7 +87,7 @@ export const RevisionTimer: React.FC<RevisionTimerProps> = ({
   }
 
   return (
-    <div className="bg-amber-100/80 border-2 border-amber-950 rounded-2xl p-3 shadow-[2px_2px_0px_#451a03] space-y-2">
+    <div className="revision-timer bg-amber-100/80 border-2 border-amber-950 rounded-2xl p-3 shadow-[2px_2px_0px_#451a03] space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-amber-950 font-black text-xs uppercase tracking-wider">
           <Timer className="w-4 h-4 text-amber-800" />
@@ -99,7 +99,7 @@ export const RevisionTimer: React.FC<RevisionTimerProps> = ({
       </div>
 
       {/* Stopwatch Display */}
-      <div className="flex items-center justify-between bg-white border-2 border-amber-950 rounded-xl px-3 py-2 shadow-[ inset_0_2px_4px_rgba(0,0,0,0.06)]">
+      <div className="revision-timer-display flex items-center justify-between bg-white border-2 border-amber-950 rounded-xl px-3 py-2 shadow-[ inset_0_2px_4px_rgba(0,0,0,0.06)]">
         <div className="flex items-center gap-2">
           <span className={`w-3 h-3 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
           <span className="font-mono text-xl font-black text-amber-950 tracking-wider">
