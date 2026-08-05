@@ -16,7 +16,7 @@ Set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` (a `mailto:` UR
 
 ### Vercel deployment
 
-Vercel does not run `server.ts`; its long-running scheduler cannot run there. This project includes Vercel serverless API routes backed by Firestore plus a one-minute Vercel Cron at `/api/cron/reminders`.
+Vercel does not run `server.ts`; its long-running scheduler cannot run there. This project includes Vercel serverless API routes backed by Firestore and a protected dispatch endpoint at `/api/cron/reminders`.
 
 In **Vercel → Project → Settings → Environment Variables**, set these values for Production (and Preview if you test there):
 
@@ -24,7 +24,7 @@ In **Vercel → Project → Settings → Environment Variables**, set these valu
 - `CRON_SECRET` — a long random value; Vercel Cron uses it to authorize the dispatch endpoint.
 - `FIREBASE_PROJECT_ID` and `FIREBASE_FIRESTORE_DATABASE_ID` — only if they differ from the values in `firebase-applet-config.json`.
 
-Redeploy after saving the variables. The Cron frequency configured in `vercel.json` requires a Vercel plan that permits minute-level cron jobs; if your plan does not, use an external scheduler to call `/api/cron/reminders` with `Authorization: Bearer <CRON_SECRET>` at the interval you need.
+Redeploy after saving the variables. Configure a Vercel Cron on a plan that permits your required frequency, or use an external scheduler to call `/api/cron/reminders` with `Authorization: Bearer <CRON_SECRET>` at the interval you need. The Cron declaration is intentionally not committed because the current Vercel plan rejected minute-level jobs and blocked the entire deployment.
 
 For non-Vercel deployments, the Express server uses the process-based scheduler and needs an always-running single instance with durable storage. For scale-to-zero/serverless hosting, use the included Vercel design or an equivalent managed database and scheduled worker.
 
