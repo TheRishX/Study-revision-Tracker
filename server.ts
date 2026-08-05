@@ -214,7 +214,7 @@ Your role:
       res.json({ text: replyText });
     } catch (error: any) {
       console.error("Gemini API Error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: error.message || "Failed to contact Gemini AI assistant.",
         text: "I couldn't reach the AI server right now, but here's a quick tip: Always present 2 distinct options to clients to prevent endless open-ended revision cycles! 🎬"
       });
