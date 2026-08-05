@@ -1,4 +1,4 @@
-import { reminderServiceReady } from './_config';
+import { reminderServiceReady } from './_config.js';
 
 export default function handler(_req: any, res: any) {
   if (!reminderServiceReady()) return res.status(503).json({ error: 'Reminders are not configured on this deployment. Contact the site owner.' });

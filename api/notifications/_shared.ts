@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { collection, deleteDoc, doc, getDocs, getFirestore, setDoc } from 'firebase/firestore';
 import webpush from 'web-push';
-import { reminderServiceReady } from './_config';
+import { reminderServiceReady } from './_config.js';
 
-export { reminderServiceReady } from './_config';
+export { reminderServiceReady } from './_config.js';
 
 export type ReminderClient = {
   subscription: webpush.PushSubscription;

@@ -1,4 +1,4 @@
-import { removeClient, requirePost } from './_shared';
+import { removeClient, requirePost } from './_shared.js';
 
 export default async function handler(req: any, res: any) {
   if (!requirePost(req, res)) return;

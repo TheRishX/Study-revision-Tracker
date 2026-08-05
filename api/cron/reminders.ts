@@ -1,4 +1,4 @@
-import { dispatchReminders } from '../notifications/_shared';
+import { dispatchReminders } from '../notifications/_shared.js';
 
 export default async function handler(req: any, res: any) {
   const expectedSecret = process.env.CRON_SECRET;

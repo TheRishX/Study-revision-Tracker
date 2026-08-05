@@ -1,4 +1,4 @@
-import { requirePost, saveClient } from './_shared';
+import { requirePost, saveClient } from './_shared.js';
 
 export default async function handler(req: any, res: any) {
   if (!requirePost(req, res)) return;
