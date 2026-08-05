@@ -2,6 +2,9 @@ import { createHash } from 'node:crypto';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { collection, deleteDoc, doc, getDocs, getFirestore, setDoc } from 'firebase/firestore';
 import webpush from 'web-push';
+import { reminderServiceReady } from './_config';
+
+export { reminderServiceReady } from './_config';
 
 export type ReminderClient = {
   subscription: webpush.PushSubscription;
@@ -22,10 +25,6 @@ const clients = collection(db, 'reminderClients');
 
 function clientId(endpoint: string) {
   return createHash('sha256').update(endpoint).digest('hex');
-}
-
-export function reminderServiceReady() {
-  return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT);
 }
 
 function pushService() {
