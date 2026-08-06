@@ -45,9 +45,14 @@ const plainText = (html: string) => {
   return document.body.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 };
 
-const renderContent = (content: string) => DOMPurify.sanitize(
-  marked.parse(content || '', { async: false, breaks: true, gfm: true }) as string,
-);
+const renderContent = (content: string) => {
+  const source = content || '';
+  const containsHtml = /<\/?(?:p|div|h[1-6]|ul|ol|li|pre|code|blockquote|figure|figcaption|img|table|thead|tbody|tr|th|td|hr|br|section|article|span|strong|em|a)\b[^>]*>/i.test(source);
+  const html = containsHtml
+    ? source
+    : marked.parse(source, { async: false, breaks: true, gfm: true }) as string;
+  return DOMPurify.sanitize(html);
+};
 
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, {
   day: 'numeric', month: 'short', year: 'numeric',
@@ -90,11 +95,46 @@ export const BlogPage: React.FC = () => {
   useEffect(() => {
     if (!articleRef.current || !articleHtml) return;
     let cancelled = false;
-    void import('highlight.js').then(({ default: hljs }) => {
+    void Promise.all([
+      import('highlight.js'),
+      import('prettier/standalone'),
+      import('prettier/plugins/babel'),
+      import('prettier/plugins/estree'),
+      import('prettier/plugins/typescript'),
+      import('prettier/plugins/html'),
+      import('prettier/plugins/postcss'),
+    ]).then(async ([{ default: hljs }, prettier, { default: babel }, { default: estree }, { default: typescript }, { default: html }, { default: postcss }]) => {
       if (cancelled || !articleRef.current) return;
-      articleRef.current.querySelectorAll<HTMLElement>('pre code').forEach(code => {
+      for (const code of articleRef.current.querySelectorAll<HTMLElement>('pre code')) {
+        const source = code.textContent ?? '';
+        const declaredLanguage = [...code.classList]
+          .find(className => className.startsWith('language-'))
+          ?.slice('language-'.length)
+          .toLowerCase();
+        const looksLikeJavaScript = /\b(?:const|let|var|function|import|export)\b|=>|console\.|register\s*\(/.test(source);
+        const language = declaredLanguage || (looksLikeJavaScript ? 'javascript' : hljs.highlightAuto(source).language || '');
+        const parser = ['javascript', 'js', 'jsx'].includes(language) ? 'babel'
+          : ['typescript', 'ts', 'tsx'].includes(language) ? 'typescript'
+            : language === 'json' ? 'json'
+              : ['html', 'xml', 'svg'].includes(language) ? 'html'
+                : ['css', 'scss', 'less'].includes(language) ? language
+                  : null;
+
+        if (parser) {
+          try {
+            code.textContent = (await prettier.format(source, {
+              parser,
+              plugins: [babel, estree, typescript, html, postcss],
+              printWidth: 88,
+              tabWidth: 2,
+              useTabs: false,
+            })).trimEnd();
+          } catch {
+            code.textContent = source;
+          }
+        }
         hljs.highlightElement(code);
-      });
+      }
     });
     return () => { cancelled = true; };
   }, [articleHtml]);
