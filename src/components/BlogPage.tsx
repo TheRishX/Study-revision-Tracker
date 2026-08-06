@@ -2,6 +2,7 @@ import { ExternalLink, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 const POSTS_ENDPOINT = '/api/blogs';
+const WORDPRESS_POSTS_ENDPOINT = 'https://public-api.wordpress.com/rest/v1.1/sites/psalmify.wordpress.com/posts/?number=12';
 
 interface WordPressPost {
   ID: number;
@@ -17,6 +18,28 @@ interface WordPressPost {
 interface WordPressResponse {
   posts?: WordPressPost[];
 }
+
+// WordPress.com supports JSONP, which gives static-only deployments a safe
+// fallback when their host does not deploy this app's /api serverless routes.
+const loadPostsViaJsonp = () => new Promise<WordPressResponse>((resolve, reject) => {
+  const callbackName = `psalmifyPosts_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const callbackHost = window as unknown as Record<string, unknown>;
+  const script = document.createElement('script');
+  const timeout = window.setTimeout(() => finish(new Error('Psalmify request timed out')), 12_000);
+
+  const finish = (error?: Error, data?: WordPressResponse) => {
+    window.clearTimeout(timeout);
+    script.remove();
+    delete callbackHost[callbackName];
+    if (error) reject(error);
+    else resolve(data ?? {});
+  };
+
+  callbackHost[callbackName] = (data: WordPressResponse) => finish(undefined, data);
+  script.onerror = () => finish(new Error('Unable to load Psalmify posts'));
+  script.src = `${WORDPRESS_POSTS_ENDPOINT}&callback=${encodeURIComponent(callbackName)}`;
+  document.head.appendChild(script);
+});
 
 const plainText = (html: string) => {
   const document = new DOMParser().parseFromString(html, 'text/html');
@@ -36,9 +59,15 @@ export const BlogPage: React.FC = () => {
     setIsLoading(true);
     setError(false);
     try {
-      const response = await fetch(POSTS_ENDPOINT);
-      if (!response.ok) throw new Error(`Could not load posts (${response.status})`);
-      const data: WordPressResponse = await response.json();
+      let data: WordPressResponse;
+      try {
+        const response = await fetch(POSTS_ENDPOINT);
+        if (!response.ok) throw new Error(`Could not load posts (${response.status})`);
+        data = await response.json();
+      } catch (proxyError) {
+        console.warn('Blog proxy unavailable; using the WordPress fallback:', proxyError);
+        data = await loadPostsViaJsonp();
+      }
       setPosts(data.posts ?? []);
     } catch (loadError) {
       console.error('Unable to load Psalmify posts:', loadError);
