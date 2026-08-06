@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Rewise — Revision Tracker",
   "description": "Make every new tab a focused study and revision space.",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "chrome_url_overrides": {
     "newtab": "index.html"
   },

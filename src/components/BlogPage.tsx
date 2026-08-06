@@ -120,9 +120,10 @@ export const BlogPage: React.FC = () => {
                 : ['css', 'scss', 'less'].includes(language) ? language
                   : null;
 
+        let formattedSource = source;
         if (parser) {
           try {
-            code.textContent = (await prettier.format(source, {
+            formattedSource = (await prettier.format(source, {
               parser,
               plugins: [babel, estree, typescript, html, postcss],
               printWidth: 88,
@@ -130,10 +131,14 @@ export const BlogPage: React.FC = () => {
               useTabs: false,
             })).trimEnd();
           } catch {
-            code.textContent = source;
+            formattedSource = source;
           }
         }
-        hljs.highlightElement(code);
+        const result = language && hljs.getLanguage(language)
+          ? hljs.highlight(formattedSource, { language })
+          : hljs.highlightAuto(formattedSource);
+        code.innerHTML = result.value;
+        code.classList.add('hljs');
       }
     });
     return () => { cancelled = true; };
