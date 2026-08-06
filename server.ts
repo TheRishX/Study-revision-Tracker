@@ -176,6 +176,18 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  app.get('/api/blogs', async (_req, res) => {
+    try {
+      const response = await fetch('https://public-api.wordpress.com/rest/v1.1/sites/psalmify.wordpress.com/posts/?number=12');
+      if (!response.ok) throw new Error(`Psalmify API responded with ${response.status}`);
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
+      res.json(await response.json());
+    } catch (error) {
+      console.error('Unable to fetch Psalmify posts:', error);
+      res.status(502).json({ error: 'Unable to load Psalmify posts' });
+    }
+  });
+
   // Gemini Chatbot Route
   app.post("/api/chat", async (req, res) => {
     try {

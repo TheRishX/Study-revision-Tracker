@@ -116,6 +116,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .nav-button { display: inline-flex; align-items: center; gap: 7px; border-radius: 9px; padding: 7px 10px; color: #737c69; font-size: .8rem; font-weight: 600; }
 .nav-button:hover { color: #40502f; }
 .nav-active { background: #fff; color: #40502f; box-shadow: 0 1px 3px rgba(44, 53, 37, .08); }
+.blog-title { color: var(--text); font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1; letter-spacing: -.05em; font-weight: 650; }
+.blog-subtitle { color: var(--muted); font-size: .95rem; }
+.blog-card { display: flex; min-height: 252px; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); box-shadow: 0 10px 28px rgba(48, 58, 39, .05); transition: transform .18s ease, box-shadow .18s ease; }
+.blog-card:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(48, 58, 39, .1); }
+.blog-card-image { height: 164px; width: 100%; object-fit: cover; background: var(--surface-soft); }
+.blog-card-title { color: var(--text); font-size: 1.03rem; line-height: 1.35; font-weight: 700; }
+.blog-card-excerpt { display: -webkit-box; overflow: hidden; color: var(--muted); font-size: .84rem; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.blog-read-link { display: inline-flex; align-items: center; gap: 6px; color: #4d5f38; font-size: .83rem; font-weight: 700; }
+.blog-read-link:hover { color: #3f4f2e; }
+.blog-status { display: flex; min-height: 250px; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1px dashed var(--border); border-radius: 20px; padding: 28px; color: var(--muted); text-align: center; font-size: .9rem; }
 .category-filter { height: 34px; border: 1px solid #e0e5da; border-radius: 999px; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; background: #fff; color: #687060; font-size: .75rem; font-weight: 600; }
 .category-filter:hover { border-color: #bfc9b5; color: #40502f; }
 .category-filter i { width: 7px; height: 7px; border-radius: 999px; }

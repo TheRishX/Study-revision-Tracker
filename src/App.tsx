@@ -4,12 +4,12 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { 
-  subscribeToVideos, 
-  addVideoProject, 
-  incrementVideoRevision, 
-  updateVideoProject, 
-  deleteVideoProject, 
+import {
+  subscribeToVideos,
+  addVideoProject,
+  incrementVideoRevision,
+  updateVideoProject,
+  deleteVideoProject,
   deleteRevisionLog,
   subscribeToCategories,
   addStudyCategory,
@@ -40,6 +40,7 @@ import { EmptyState } from './components/EmptyState';
 import { ReminderSettingsModal } from './components/ReminderSettingsModal';
 import { CategorySettingsPage } from './components/CategorySettingsPage';
 import { TodoWidget } from './components/TodoWidget';
+import { BlogPage } from './components/BlogPage';
 import { syncGoalWithReminderService } from './lib/notifications';
 import { playSelectedAlarmSound } from './lib/alarmSound';
 import { motion, AnimatePresence } from 'motion/react';
@@ -65,9 +66,9 @@ const MAJOR_CATEGORIES = [
 export default function App() {
   const [videos, setVideos] = useState<VideoProject[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings'>('overview');
+  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings' | 'blogs'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
 
   // Service workers cannot play audio. When the app is already open, they notify
@@ -76,7 +77,7 @@ export default function App() {
     if (!('serviceWorker' in navigator)) return;
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === 'REMINDER_RECEIVED' && document.visibilityState === 'visible') {
-        void playSelectedAlarmSound().catch(() => {});
+        void playSelectedAlarmSound().catch(() => { });
       }
     };
     navigator.serviceWorker.addEventListener('message', onMessage);
@@ -112,7 +113,7 @@ export default function App() {
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
 
   const handleToggleSelectVideo = (id: string) => {
-    setSelectedVideoIds(prev => 
+    setSelectedVideoIds(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
@@ -452,13 +453,13 @@ export default function App() {
   const handleIncrementRevision = async (video: VideoProject, addedDurationSeconds?: number) => {
     try {
       await incrementVideoRevision(
-        video.id, 
-        video.revisionCount, 
+        video.id,
+        video.revisionCount,
         {
           reason: addedDurationSeconds ? `Timed Session (${Math.round(addedDurationSeconds / 60)}m)` : 'Revision +1',
           notes: addedDurationSeconds ? `Spent ${Math.round(addedDurationSeconds / 60)} minutes studying.` : 'Quick revision completed.',
           durationSeconds: addedDurationSeconds || 0
-        }, 
+        },
         video.revisionLogs || [],
         addedDurationSeconds
       );
@@ -479,8 +480,8 @@ export default function App() {
   };
 
   const handleIncrementWithLog = async (
-    videoId: string, 
-    currentCount: number, 
+    videoId: string,
+    currentCount: number,
     logData: Omit<RevisionLog, 'id' | 'revisionNumber' | 'timestamp'>,
     existingLogs: RevisionLog[]
   ) => {
@@ -614,9 +615,8 @@ export default function App() {
   }, [videos, searchQuery, sortOption, selectedCategoryId, categoryForVideo]);
 
   return (
-    <div className={`app-shell relative w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white overflow-x-hidden ${
-      currentPage === 'overview' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'
-    }`}>
+    <div className={`app-shell relative w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white overflow-x-hidden ${currentPage === 'overview' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'
+      }`}>
 
       {/* Header Navigation */}
       <Header
@@ -648,11 +648,10 @@ export default function App() {
       />
 
       {/* Main Content View Container */}
-      <main className={`flex-1 w-full relative z-10 ${
-        currentPage === 'overview' ? 'flex flex-col' : currentPage === 'settings' ? '' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
-      }`}>
-        
-        {loading ? (
+      <main className={`flex-1 w-full relative z-10 ${currentPage === 'overview' ? 'flex flex-col' : currentPage === 'settings' ? '' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
+        }`}>
+
+        {loading && currentPage !== 'blogs' ? (
           <div className="flex flex-col items-center justify-center py-20 text-center text-[#59634f]">
             <div className="w-7 h-7 border-2 border-[#4d5f38] border-t-transparent rounded-full animate-spin mb-3" />
             <p className="font-medium text-xs">Preparing today…</p>
@@ -699,10 +698,12 @@ export default function App() {
                   dailyGoal={dailyGoal}
                   onChangeDailyGoal={handleChangeDailyGoal}
                 />
+              ) : currentPage === 'blogs' ? (
+                <BlogPage />
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
                 <div className="pb-16 space-y-4">
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-bold text-stone-900">{selectedCategoryId === 'all' ? 'All Study Topics' : smartCategories.find(category => category.id === selectedCategoryId)?.name || 'Topics'} ({filteredAndSortedVideos.length})</h2>
@@ -717,13 +718,13 @@ export default function App() {
                     >
                       + Add Topic
                     </button>
-                  {isMultiSelectMode && (
-                    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                      <span className="text-xs font-semibold text-amber-900">{selectedVideoIds.length} topic{selectedVideoIds.length === 1 ? '' : 's'} selected</span>
-                      <button onClick={handleDeleteSelected} disabled={!selectedVideoIds.length} className="ml-auto rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Delete selected</button>
-                      <button onClick={() => { setSelectedVideoIds([]); setIsMultiSelectMode(false); }} className="subtle-button !py-1.5">Cancel</button>
-                    </div>
-                  )}
+                    {isMultiSelectMode && (
+                      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <span className="text-xs font-semibold text-amber-900">{selectedVideoIds.length} topic{selectedVideoIds.length === 1 ? '' : 's'} selected</span>
+                        <button onClick={handleDeleteSelected} disabled={!selectedVideoIds.length} className="ml-auto rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Delete selected</button>
+                        <button onClick={() => { setSelectedVideoIds([]); setIsMultiSelectMode(false); }} className="subtle-button !py-1.5">Cancel</button>
+                      </div>
+                    )}
 
                   </div>
 
