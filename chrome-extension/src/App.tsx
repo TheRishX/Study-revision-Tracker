@@ -40,6 +40,7 @@ import { EmptyState } from './components/EmptyState';
 import { ReminderSettingsModal } from './components/ReminderSettingsModal';
 import { CategorySettingsPage } from './components/CategorySettingsPage';
 import { TodoWidget } from './components/TodoWidget';
+import { BlogPage } from './components/BlogPage';
 import { syncGoalWithReminderService } from './lib/notifications';
 import { playSelectedAlarmSound } from './lib/alarmSound';
 import { motion, AnimatePresence } from 'motion/react';
@@ -67,7 +68,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   
   // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings'>('overview');
+  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings' | 'blogs'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
 
   // The web build uses a page service worker for push. Chrome extension pages
@@ -619,7 +620,7 @@ export default function App() {
         currentPage === 'overview' ? 'flex flex-col' : currentPage === 'settings' ? '' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
       }`}>
         
-        {loading ? (
+        {loading && currentPage !== 'blogs' ? (
           <div className="flex flex-col items-center justify-center py-20 text-center text-[#59634f]">
             <div className="w-7 h-7 border-2 border-[#4d5f38] border-t-transparent rounded-full animate-spin mb-3" />
             <p className="font-medium text-xs">Preparing today…</p>
@@ -662,6 +663,8 @@ export default function App() {
                   dailyGoal={dailyGoal}
                   onChangeDailyGoal={handleChangeDailyGoal}
                 />
+              ) : currentPage === 'blogs' ? (
+                <BlogPage />
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
                 <div className="pb-16 space-y-4">

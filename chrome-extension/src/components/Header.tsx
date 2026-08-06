@@ -1,10 +1,10 @@
 import React from 'react';
-import { Bell, BookOpen, Grid, Home, Kanban, LayoutGrid, List, Plus, Search, Settings, Target, X } from 'lucide-react';
+import { Bell, BookOpen, Grid, Home, Kanban, LayoutGrid, List, Newspaper, Plus, Search, Settings, Target, X } from 'lucide-react';
 import { SortOption, ViewMode } from '../types';
 
 interface HeaderProps {
-  currentPage: 'overview' | 'topics' | 'settings';
-  setCurrentPage: (page: 'overview' | 'topics' | 'settings') => void;
+  currentPage: 'overview' | 'topics' | 'settings' | 'blogs';
+  setCurrentPage: (page: 'overview' | 'topics' | 'settings' | 'blogs') => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   sortOption: SortOption;
@@ -28,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, vie
       <nav className="app-nav flex items-center gap-1 p-1 rounded-xl">
         <button onClick={() => setCurrentPage('overview')} className={`nav-button ${currentPage === 'overview' ? 'nav-active' : ''}`}><Home className="w-4 h-4" /><span className="hidden sm:inline">Today</span></button>
         <button onClick={() => setCurrentPage('topics')} className={`nav-button ${currentPage === 'topics' ? 'nav-active' : ''}`}><BookOpen className="w-4 h-4" /><span className="hidden sm:inline">Topics</span></button>
+        <button onClick={() => setCurrentPage('blogs')} className={`nav-button ${currentPage === 'blogs' ? 'nav-active' : ''}`}><Newspaper className="w-4 h-4" /><span className="hidden sm:inline">Blogs</span></button>
       </nav>
 
       <div className="flex items-center gap-1.5">
