@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BookOpen, Check, ChevronDown, CirclePause, Flame, Play, Plus, Sparkles, Target } from 'lucide-react';
 import { DailyGoal, VideoProject } from '../types';
 
@@ -10,7 +10,6 @@ interface Props {
   onOpenAddModal: () => void;
   onSaveDailyGoal: (goal: DailyGoal) => void;
   onCompleteDailyGoal: (video?: VideoProject) => void;
-  onCreateTopicForGoal: (title: string) => Promise<string>;
 }
 
 const formatTimer = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
@@ -28,17 +27,14 @@ const FREE_WALLPAPERS = [
 ];
 
 export const OverviewDashboard: React.FC<Props> = ({
-  videos, dailyGoal, streakDays, onNavigateToTopics, onOpenAddModal, onSaveDailyGoal, onCompleteDailyGoal, onCreateTopicForGoal,
+  videos, dailyGoal, streakDays, onNavigateToTopics, onOpenAddModal, onSaveDailyGoal, onCompleteDailyGoal,
 }) => {
   const [intent, setIntent] = useState('');
   const [videoId, setVideoId] = useState('');
   const [targetMinutes, setTargetMinutes] = useState(45);
   const timerKey = `focusTimer_${localDateKey()}`;
-  const timerBaseKey = `focusTimerBase_${localDateKey()}`;
-  const timerStartedKey = `focusTimerStarted_${localDateKey()}`;
   const [seconds, setSeconds] = useState(() => Number(localStorage.getItem(timerKey)) || 0);
-  const secondsAtStartRef = useRef(0);
-  const startedAtRef = useRef<number | null>(null);
+  const [running, setRunning] = useState(false);
   const linkedVideo = videos.find(video => video.id === dailyGoal?.videoId);
   const today = useMemo(() => new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }), []);
   const yearStats = useMemo(() => {
@@ -60,66 +56,28 @@ export const OverviewDashboard: React.FC<Props> = ({
     return FREE_WALLPAPERS[dayOfYear % FREE_WALLPAPERS.length];
   }, []);
 
-  const running = dailyGoal?.status === 'learning';
-
   useEffect(() => {
     if (!running) return;
-    const storedBase = Number(localStorage.getItem(timerBaseKey));
-    const storedStartedAt = Number(localStorage.getItem(timerStartedKey));
-    secondsAtStartRef.current = Number.isFinite(storedBase) ? storedBase : seconds;
-    startedAtRef.current = Number.isFinite(storedStartedAt) && storedStartedAt > 0 ? storedStartedAt : Date.now();
-    localStorage.setItem(timerBaseKey, String(secondsAtStartRef.current));
-    localStorage.setItem(timerStartedKey, String(startedAtRef.current));
-
-    const updateElapsedTime = () => {
-      const elapsed = Math.floor((Date.now() - (startedAtRef.current || Date.now())) / 1000);
-      setSeconds(secondsAtStartRef.current + Math.max(0, elapsed));
-    };
-    updateElapsedTime();
-    const timer = window.setInterval(updateElapsedTime, 1000);
+    const timer = window.setInterval(() => setSeconds(value => value + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [running, timerBaseKey, timerStartedKey]);
+  }, [running]);
 
   useEffect(() => {
     localStorage.setItem(timerKey, String(seconds));
   }, [seconds, timerKey]);
 
-  const saveGoal = async (event: React.FormEvent) => {
+  const saveGoal = (event: React.FormEvent) => {
     event.preventDefault();
-    const selected = videos.find(video => video.id === videoId) || videos.find(video => video.title.toLocaleLowerCase() === intent.trim().toLocaleLowerCase());
+    const selected = videos.find(video => video.id === videoId);
     const cleanIntent = intent.trim() || selected?.title;
     if (!cleanIntent) return;
-    const selectedId = selected?.id || await onCreateTopicForGoal(cleanIntent);
-    onSaveDailyGoal({ dateStr: localDateKey(), videoId: selectedId, intent: cleanIntent, targetMinutes, status: 'not_started', completed: false });
+    onSaveDailyGoal({ dateStr: localDateKey(), videoId: videoId || undefined, intent: cleanIntent, targetMinutes, status: 'not_started', completed: false });
   };
 
   const setStatus = (status: DailyGoal['status']) => {
     if (!dailyGoal) return;
-    if (status === 'learning') {
-      secondsAtStartRef.current = seconds;
-      startedAtRef.current = Date.now();
-      localStorage.setItem(timerBaseKey, String(seconds));
-      localStorage.setItem(timerStartedKey, String(startedAtRef.current));
-    } else if (running) {
-      const elapsed = Math.floor((Date.now() - (startedAtRef.current || Date.now())) / 1000);
-      const updatedSeconds = secondsAtStartRef.current + Math.max(0, elapsed);
-      setSeconds(updatedSeconds);
-      localStorage.setItem(timerKey, String(updatedSeconds));
-      localStorage.removeItem(timerBaseKey);
-      localStorage.removeItem(timerStartedKey);
-      startedAtRef.current = null;
-    }
     onSaveDailyGoal({ ...dailyGoal, status, lastCheckInAt: new Date().toISOString() });
-  };
-
-  const resetTimer = () => {
-    setSeconds(0);
-    secondsAtStartRef.current = 0;
-    startedAtRef.current = null;
-    localStorage.removeItem(timerKey);
-    localStorage.removeItem(timerBaseKey);
-    localStorage.removeItem(timerStartedKey);
-    if (dailyGoal && running) onSaveDailyGoal({ ...dailyGoal, status: 'paused', lastCheckInAt: new Date().toISOString() });
+    setRunning(status === 'learning');
   };
 
   const completed = Boolean(dailyGoal?.completed || dailyGoal?.status === 'completed');
@@ -149,9 +107,7 @@ export const OverviewDashboard: React.FC<Props> = ({
               <form onSubmit={saveGoal} className="momentum-panel mt-8 text-left space-y-5">
                 <label className="block">
                   <span className="momentum-label">Today’s outcome</span>
-                  <input autoFocus list="existing-topics" value={intent} onChange={event => { const value = event.target.value; setIntent(value); const match = videos.find(video => video.title.toLocaleLowerCase() === value.trim().toLocaleLowerCase()); setVideoId(match?.id || ''); }} placeholder="Search or create a topic…" className="momentum-goal-input" />
-                  <datalist id="existing-topics">{videos.map(video => <option key={video.id} value={video.title}>{video.subject}</option>)}</datalist>
-                  <span className="block text-[10px] text-white/60 mt-1.5">Pick a suggestion to link it, or use a new name to create and select a topic.</span>
+                  <input autoFocus value={intent} onChange={event => setIntent(event.target.value)} placeholder="Explain React rendering from memory" className="momentum-goal-input" />
                 </label>
                 <div className="grid sm:grid-cols-[1fr_150px] gap-3">
                   <label>
@@ -207,8 +163,7 @@ export const OverviewDashboard: React.FC<Props> = ({
                   ) : (
                     <button onClick={() => setStatus('paused')} className="momentum-secondary"><CirclePause className="w-4 h-4" /> Pause</button>
                   )}
-                  <button onClick={() => { if (running) setStatus('paused'); onCompleteDailyGoal(linkedVideo); }} className="momentum-secondary"><Check className="w-4 h-4" /> Mark complete</button>
-                  <button onClick={resetTimer} className="momentum-secondary">Reset timer</button>
+                  <button onClick={() => { setRunning(false); onCompleteDailyGoal(linkedVideo); }} className="momentum-secondary"><Check className="w-4 h-4" /> Mark complete</button>
                 </div>
               ) : <p className="mt-7 text-sm text-white/80 flex items-center justify-center gap-2"><Sparkles className="w-4 h-4" /> Consistency is how exceptional careers are built.</p>}
 

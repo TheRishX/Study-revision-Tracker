@@ -17,7 +17,7 @@ import {
   deleteStudyCategory,
   updateCategoryOrders,
   updateVideoOrders,
-} from './lib/firebase';
+} from './lib/localStore';
 import { SAMPLE_VIDEOS } from './lib/sampleData';
 import { calculateAchievements } from './lib/achievements';
 import { soundEffects } from './lib/sound';
@@ -70,9 +70,10 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
 
-  // Service workers cannot play audio. When the app is already open, they notify
-  // this page about a push so the user's locally selected sound can be played.
+  // The web build uses a page service worker for push. Chrome extension pages
+  // are managed by the MV3 background worker instead.
   useEffect(() => {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.id) return;
     if (!('serviceWorker' in navigator)) return;
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === 'REMINDER_RECEIVED' && document.visibilityState === 'visible') {
@@ -142,22 +143,6 @@ export default function App() {
       soundEffects.fanfare(soundMuted);
     } catch (err) {
       console.error('Failed to batch master topics:', err);
-    }
-  };
-
-  const handleResetAllTopics = async () => {
-    try {
-      for (const video of videos) await deleteVideoProject(video.id);
-      setSelectedVideoIds([]);
-      setIsMultiSelectMode(false);
-      setSelectedDetailsVideo(null);
-      setSelectedEditVideo(null);
-      if (dailyGoal?.videoId) {
-        setDailyGoal(null);
-        localStorage.removeItem(`dailyGoal_${todayStr}`);
-      }
-    } catch (err) {
-      console.error('Failed to reset topics:', err);
     }
   };
 
@@ -341,24 +326,6 @@ export default function App() {
     setDailyGoal(updatedGoal);
     localStorage.setItem(`dailyGoal_${todayStr}`, JSON.stringify(updatedGoal));
     void syncGoalWithReminderService(updatedGoal);
-  };
-
-  const handleCreateTopicForDailyGoal = async (title: string) => {
-    const newId = await addVideoProject({
-      title: title.trim(),
-      subject: 'General',
-      categoryId: '',
-      categorySource: 'smart',
-      revisionCount: 0,
-      targetRevisionCount: 5,
-      totalTimeSeconds: 0,
-      status: 'not_started',
-      tags: ['General'],
-      notes: 'Created while setting today\'s goal.',
-      orderIndex: Date.now(),
-      revisionLogs: []
-    });
-    return newId;
   };
 
   const handleSaveDailyGoal = (updatedGoal: DailyGoal) => {
@@ -677,7 +644,6 @@ export default function App() {
                   onOpenAddModal={() => setIsAddModalOpen(true)}
                   onSaveDailyGoal={handleSaveDailyGoal}
                   onCompleteDailyGoal={handleCompleteDailyGoal}
-                  onCreateTopicForGoal={handleCreateTopicForDailyGoal}
                 />
               ) : currentPage === 'settings' ? (
                 <CategorySettingsPage
@@ -691,9 +657,6 @@ export default function App() {
                   onAssignTopic={handleAssignTopic}
                   onReorderTopics={handleReorderTopics}
                   onAddTopic={(category) => { setNewTopicCategoryId(category.id); setIsAddModalOpen(true); }}
-                  onStartTopicSelection={() => { setCurrentPage('topics'); setIsMultiSelectMode(true); }}
-                  onResetAllTopics={handleResetAllTopics}
-                  onSetDailyGoalTopic={handleSetDailyGoalVideo}
                   themePreference={themePreference}
                   onThemeChange={setThemePreference}
                   dailyGoal={dailyGoal}
@@ -717,14 +680,6 @@ export default function App() {
                     >
                       + Add Topic
                     </button>
-                  {isMultiSelectMode && (
-                    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                      <span className="text-xs font-semibold text-amber-900">{selectedVideoIds.length} topic{selectedVideoIds.length === 1 ? '' : 's'} selected</span>
-                      <button onClick={handleDeleteSelected} disabled={!selectedVideoIds.length} className="ml-auto rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Delete selected</button>
-                      <button onClick={() => { setSelectedVideoIds([]); setIsMultiSelectMode(false); }} className="subtle-button !py-1.5">Cancel</button>
-                    </div>
-                  )}
-
                   </div>
 
                   <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">

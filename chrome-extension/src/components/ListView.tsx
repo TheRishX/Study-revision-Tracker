@@ -80,6 +80,7 @@ export const ListView: React.FC<ListViewProps> = ({
                   </button>
                 </th>
               )}
+              <th className="py-2 pl-3 pr-1 w-10 text-center">#</th>
               <th className="py-2 px-3">Study Topic</th>
               <th className="py-2 px-3">Status</th>
               <th className="py-2 px-3">Progress / Revisions</th>
@@ -88,7 +89,7 @@ export const ListView: React.FC<ListViewProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
-            {videos.map((video) => {
+            {videos.map((video, index) => {
               const targetCount = video.targetRevisionCount || 5;
               const revCount = video.revisionCount;
               const progressPercent = Math.min(100, Math.round((revCount / targetCount) * 100));
@@ -114,6 +115,10 @@ export const ListView: React.FC<ListViewProps> = ({
                     </td>
                   )}
                   
+                  <td className="py-1.5 pl-3 pr-1 text-center text-[11px] font-semibold text-stone-400 tabular-nums">
+                    {index + 1}
+                  </td>
+
                   {/* Topic Title & Subject */}
                   <td className="py-1.5 px-3">
                     <div className="min-w-[250px] max-w-[380px]">

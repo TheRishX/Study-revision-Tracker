@@ -1,0 +1,10 @@
+{
+  "name": "Rewise — Daily Revision Focus",
+  "short_name": "Rewise",
+  "description": "Set one daily learning goal, revise consistently, and stay accountable.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfcf9",
+  "theme_color": "#4d5f38",
+  "icons": [{ "src": "/focus-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
