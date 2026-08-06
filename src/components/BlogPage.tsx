@@ -19,27 +19,21 @@ interface WordPressResponse {
   posts?: WordPressPost[];
 }
 
-// WordPress.com supports JSONP, which gives static-only deployments a safe
-// fallback when their host does not deploy this app's /api serverless routes.
-const loadPostsViaJsonp = () => new Promise<WordPressResponse>((resolve, reject) => {
-  const callbackName = `psalmifyPosts_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const callbackHost = window as unknown as Record<string, unknown>;
-  const script = document.createElement('script');
-  const timeout = window.setTimeout(() => finish(new Error('Psalmify request timed out')), 12_000);
+const fetchPosts = async (endpoint: string) => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 12_000);
 
-  const finish = (error?: Error, data?: WordPressResponse) => {
+  try {
+    const response = await fetch(endpoint, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Could not load posts (${response.status})`);
+    return await response.json() as WordPressResponse;
+  } finally {
     window.clearTimeout(timeout);
-    script.remove();
-    delete callbackHost[callbackName];
-    if (error) reject(error);
-    else resolve(data ?? {});
-  };
-
-  callbackHost[callbackName] = (data: WordPressResponse) => finish(undefined, data);
-  script.onerror = () => finish(new Error('Unable to load Psalmify posts'));
-  script.src = `${WORDPRESS_POSTS_ENDPOINT}&callback=${encodeURIComponent(callbackName)}`;
-  document.head.appendChild(script);
-});
+  }
+};
 
 const plainText = (html: string) => {
   const document = new DOMParser().parseFromString(html, 'text/html');
@@ -61,12 +55,10 @@ export const BlogPage: React.FC = () => {
     try {
       let data: WordPressResponse;
       try {
-        const response = await fetch(POSTS_ENDPOINT);
-        if (!response.ok) throw new Error(`Could not load posts (${response.status})`);
-        data = await response.json();
+        data = await fetchPosts(POSTS_ENDPOINT);
       } catch (proxyError) {
-        console.warn('Blog proxy unavailable; using the WordPress fallback:', proxyError);
-        data = await loadPostsViaJsonp();
+        console.warn('Blog proxy unavailable; fetching directly from WordPress:', proxyError);
+        data = await fetchPosts(WORDPRESS_POSTS_ENDPOINT);
       }
       setPosts(data.posts ?? []);
     } catch (loadError) {
