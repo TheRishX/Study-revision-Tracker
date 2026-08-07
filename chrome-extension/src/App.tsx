@@ -4,12 +4,12 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { 
-  subscribeToVideos, 
-  addVideoProject, 
-  incrementVideoRevision, 
-  updateVideoProject, 
-  deleteVideoProject, 
+import {
+  subscribeToVideos,
+  addVideoProject,
+  incrementVideoRevision,
+  updateVideoProject,
+  deleteVideoProject,
   deleteRevisionLog,
   subscribeToCategories,
   addStudyCategory,
@@ -17,7 +17,7 @@ import {
   deleteStudyCategory,
   updateCategoryOrders,
   updateVideoOrders,
-} from './lib/localStore';
+} from './lib/firebase';
 import { SAMPLE_VIDEOS } from './lib/sampleData';
 import { calculateAchievements } from './lib/achievements';
 import { soundEffects } from './lib/sound';
@@ -66,19 +66,20 @@ const MAJOR_CATEGORIES = [
 export default function App() {
   const [videos, setVideos] = useState<VideoProject[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Navigation & Page State
   const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings' | 'blogs'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
 
-  // The web build uses a page service worker for push. Chrome extension pages
-  // are managed by the MV3 background worker instead.
+  // Service workers cannot play audio. When the app is already open, they notify
+  // this page about a push so the user's locally selected sound can be played.
   useEffect(() => {
+    // Chrome extension pages use the manifest background worker for reminders.
     if (typeof chrome !== 'undefined' && chrome.runtime?.id) return;
     if (!('serviceWorker' in navigator)) return;
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === 'REMINDER_RECEIVED' && document.visibilityState === 'visible') {
-        void playSelectedAlarmSound().catch(() => {});
+        void playSelectedAlarmSound().catch(() => { });
       }
     };
     navigator.serviceWorker.addEventListener('message', onMessage);
@@ -114,7 +115,7 @@ export default function App() {
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
 
   const handleToggleSelectVideo = (id: string) => {
-    setSelectedVideoIds(prev => 
+    setSelectedVideoIds(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
@@ -144,6 +145,22 @@ export default function App() {
       soundEffects.fanfare(soundMuted);
     } catch (err) {
       console.error('Failed to batch master topics:', err);
+    }
+  };
+
+  const handleResetAllTopics = async () => {
+    try {
+      for (const video of videos) await deleteVideoProject(video.id);
+      setSelectedVideoIds([]);
+      setIsMultiSelectMode(false);
+      setSelectedDetailsVideo(null);
+      setSelectedEditVideo(null);
+      if (dailyGoal?.videoId) {
+        setDailyGoal(null);
+        localStorage.removeItem(`dailyGoal_${todayStr}`);
+      }
+    } catch (err) {
+      console.error('Failed to reset topics:', err);
     }
   };
 
@@ -329,6 +346,24 @@ export default function App() {
     void syncGoalWithReminderService(updatedGoal);
   };
 
+  const handleCreateTopicForDailyGoal = async (title: string) => {
+    const newId = await addVideoProject({
+      title: title.trim(),
+      subject: 'General',
+      categoryId: '',
+      categorySource: 'smart',
+      revisionCount: 0,
+      targetRevisionCount: 5,
+      totalTimeSeconds: 0,
+      status: 'not_started',
+      tags: ['General'],
+      notes: 'Created while setting today\'s goal.',
+      orderIndex: Date.now(),
+      revisionLogs: []
+    });
+    return newId;
+  };
+
   const handleSaveDailyGoal = (updatedGoal: DailyGoal) => {
     setDailyGoal(updatedGoal);
     localStorage.setItem(`dailyGoal_${todayStr}`, JSON.stringify(updatedGoal));
@@ -420,13 +455,13 @@ export default function App() {
   const handleIncrementRevision = async (video: VideoProject, addedDurationSeconds?: number) => {
     try {
       await incrementVideoRevision(
-        video.id, 
-        video.revisionCount, 
+        video.id,
+        video.revisionCount,
         {
           reason: addedDurationSeconds ? `Timed Session (${Math.round(addedDurationSeconds / 60)}m)` : 'Revision +1',
           notes: addedDurationSeconds ? `Spent ${Math.round(addedDurationSeconds / 60)} minutes studying.` : 'Quick revision completed.',
           durationSeconds: addedDurationSeconds || 0
-        }, 
+        },
         video.revisionLogs || [],
         addedDurationSeconds
       );
@@ -447,8 +482,8 @@ export default function App() {
   };
 
   const handleIncrementWithLog = async (
-    videoId: string, 
-    currentCount: number, 
+    videoId: string,
+    currentCount: number,
     logData: Omit<RevisionLog, 'id' | 'revisionNumber' | 'timestamp'>,
     existingLogs: RevisionLog[]
   ) => {
@@ -582,9 +617,8 @@ export default function App() {
   }, [videos, searchQuery, sortOption, selectedCategoryId, categoryForVideo]);
 
   return (
-    <div className={`app-shell relative w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white overflow-x-hidden ${
-      currentPage === 'overview' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'
-    }`}>
+    <div className={`app-shell relative w-full flex flex-col font-sans selection:bg-[#4d5f38] selection:text-white overflow-x-hidden ${currentPage === 'overview' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'
+      }`}>
 
       {/* Header Navigation */}
       <Header
@@ -616,10 +650,9 @@ export default function App() {
       />
 
       {/* Main Content View Container */}
-      <main className={`flex-1 w-full relative z-10 ${
-        currentPage === 'overview' ? 'flex flex-col' : currentPage === 'settings' ? '' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
-      }`}>
-        
+      <main className={`flex-1 w-full relative z-10 ${currentPage === 'overview' ? 'flex flex-col' : currentPage === 'settings' ? '' : 'max-w-6xl mx-auto px-4 lg:px-6 pt-8 min-h-[calc(100vh-80px)]'
+        }`}>
+
         {loading && currentPage !== 'blogs' ? (
           <div className="flex flex-col items-center justify-center py-20 text-center text-[#59634f]">
             <div className="w-7 h-7 border-2 border-[#4d5f38] border-t-transparent rounded-full animate-spin mb-3" />
@@ -645,6 +678,7 @@ export default function App() {
                   onOpenAddModal={() => setIsAddModalOpen(true)}
                   onSaveDailyGoal={handleSaveDailyGoal}
                   onCompleteDailyGoal={handleCompleteDailyGoal}
+                  onCreateTopicForGoal={handleCreateTopicForDailyGoal}
                 />
               ) : currentPage === 'settings' ? (
                 <CategorySettingsPage
@@ -658,6 +692,9 @@ export default function App() {
                   onAssignTopic={handleAssignTopic}
                   onReorderTopics={handleReorderTopics}
                   onAddTopic={(category) => { setNewTopicCategoryId(category.id); setIsAddModalOpen(true); }}
+                  onStartTopicSelection={() => { setCurrentPage('topics'); setIsMultiSelectMode(true); }}
+                  onResetAllTopics={handleResetAllTopics}
+                  onSetDailyGoalTopic={handleSetDailyGoalVideo}
                   themePreference={themePreference}
                   onThemeChange={setThemePreference}
                   dailyGoal={dailyGoal}
@@ -668,7 +705,7 @@ export default function App() {
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
                 <div className="pb-16 space-y-4">
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-bold text-stone-900">{selectedCategoryId === 'all' ? 'All Study Topics' : smartCategories.find(category => category.id === selectedCategoryId)?.name || 'Topics'} ({filteredAndSortedVideos.length})</h2>
@@ -683,6 +720,14 @@ export default function App() {
                     >
                       + Add Topic
                     </button>
+                    {isMultiSelectMode && (
+                      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <span className="text-xs font-semibold text-amber-900">{selectedVideoIds.length} topic{selectedVideoIds.length === 1 ? '' : 's'} selected</span>
+                        <button onClick={handleDeleteSelected} disabled={!selectedVideoIds.length} className="ml-auto rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Delete selected</button>
+                        <button onClick={() => { setSelectedVideoIds([]); setIsMultiSelectMode(false); }} className="subtle-button !py-1.5">Cancel</button>
+                      </div>
+                    )}
+
                   </div>
 
                   <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">

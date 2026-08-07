@@ -37,6 +37,14 @@ function saveCategories(items: StudyCategory[]) {
   write(CATEGORIES_KEY, items);
 }
 
+export function replaceLocalVideos(items: VideoProject[]) {
+  saveVideos(items);
+}
+
+export function replaceLocalCategories(items: StudyCategory[]) {
+  saveCategories(items);
+}
+
 function subscribe<T>(key: string, load: () => T, callback: (items: T) => void) {
   callback(load());
   const onStorage = (event: StorageEvent) => {

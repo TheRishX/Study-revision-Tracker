@@ -82,9 +82,9 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
         continue;
       }
 
-      // Remove only a Markdown bullet/number prefix. Keep title characters such as "3Sum" intact.
-      const cleaned = line.replace(/^(?:[-*•]\s+|\d+[.)]\s+)/, '').trim();
-      if (!cleaned) continue;
+      // Preserve the pasted title exactly; only headings and pipe metadata are parsed.
+      const cleaned = line;
+
 
       // Check for pipe delimiter: Title | Category | #tag1 #tag2
       let itemCategory = currentCategory;
@@ -100,11 +100,11 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({
         tagSource = [parts[0], metadataTags].filter(Boolean).join(' ');
       }
 
-      // Extract and deduplicate hashtags from both the title and optional metadata column.
+      // Extract hashtags as tags without changing the pasted title.
       const hashtagTags = (tagSource.match(/#([\w-]+)/g) || []).map(tag => tag.slice(1));
       const plainMetadataTags = metadataTags.includes('#') ? [] : metadataTags.split(/[,;]+/).map(tag => tag.trim()).filter(Boolean);
       const extractedTags = [...new Set([...hashtagTags, ...plainMetadataTags])];
-      itemTitle = itemTitle.replace(/#([\w-]+)/g, '').replace(/\s+/g, ' ').trim();
+
 
       // Map an explicit Markdown heading/category to one existing major category.
       const normalize = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();

@@ -128,7 +128,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-white leading-tight flex items-center gap-1.5">
-                    Focus Todo List
+                    My List
                     {pendingCount > 0 && (
                       <span className="text-[10px] font-bold bg-emerald-500 text-stone-950 px-1.5 py-0.2 rounded-full">
                         {pendingCount}
@@ -279,7 +279,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({ soundMuted }) => {
         }`}
       >
         <ListTodo className="w-4 h-4 text-emerald-400" />
-        <span>Todo</span>
+        <span>My List</span>
         {pendingCount > 0 && (
           <span className="w-4 h-4 bg-emerald-500 text-stone-950 font-extrabold text-[10px] rounded-full flex items-center justify-center">
             {pendingCount}

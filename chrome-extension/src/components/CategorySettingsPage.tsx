@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Edit3, GripVertical, Layers3, Monitor, Moon, Plus, Save, Sparkles, Sun, Target, Trash2 } from 'lucide-react';
+import { CheckSquare, Edit3, GripVertical, Layers3, Monitor, Moon, Plus, Save, Sparkles, Sun, Target, Trash2 } from 'lucide-react';
 import { DailyGoal, StudyCategory, ThemePreference, VideoProject } from '../types';
 
 interface Props {
@@ -17,6 +17,9 @@ interface Props {
   onThemeChange: (theme: ThemePreference) => void;
   dailyGoal: DailyGoal | null;
   onChangeDailyGoal: () => void;
+  onStartTopicSelection: () => void;
+  onResetAllTopics: () => Promise<void>;
+  onSetDailyGoalTopic: (id: string) => void;
 }
 
 const COLORS = ['#667a4f', '#7a6d4f', '#4f6f7a', '#755f78', '#8a654d', '#556b60'];
@@ -24,7 +27,7 @@ const COLORS = ['#667a4f', '#7a6d4f', '#4f6f7a', '#755f78', '#8a654d', '#556b60'
 export const CategorySettingsPage: React.FC<Props> = ({
   categories, videos, categoryForVideo, onCreateCategory, onUpdateCategory, onDeleteCategory,
   onReorderCategories, onAssignTopic, onReorderTopics, onAddTopic,
-  themePreference, onThemeChange, dailyGoal, onChangeDailyGoal,
+  themePreference, onThemeChange, dailyGoal, onChangeDailyGoal, onStartTopicSelection, onResetAllTopics, onSetDailyGoalTopic,
 }) => {
   const [selectedId, setSelectedId] = useState('');
   const [newName, setNewName] = useState('');
@@ -35,6 +38,8 @@ export const CategorySettingsPage: React.FC<Props> = ({
   const [editColor, setEditColor] = useState(COLORS[0]);
   const [editKeywords, setEditKeywords] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [todayTopicQuery, setTodayTopicQuery] = useState('');
   const selected = categories.find(category => category.id === selectedId) || categories[0];
 
   useEffect(() => {
@@ -100,6 +105,27 @@ export const CategorySettingsPage: React.FC<Props> = ({
           {dailyGoal && <button onClick={onChangeDailyGoal} className="subtle-button mt-4 w-full justify-center">Change today’s goal</button>}
         </section>
       </div>
+
+      <section className="goal-card !p-5 mb-8 border-rose-100">
+        <p className="field-label text-rose-700">Topic management</p>
+        <h2 className="settings-title text-base font-semibold">Manage or reset study topics</h2>
+        <p className="settings-muted text-xs mt-1">Choose individual topics to delete, or permanently remove every topic from the tracker.</p>
+        <div className="mt-4">
+          <label className="field-label">Set today’s topic</label>
+          <div className="flex flex-wrap gap-2">
+            <input list="settings-topics" value={todayTopicQuery} onChange={event => setTodayTopicQuery(event.target.value)} placeholder="Search existing topics…" className="focus-input min-w-[220px] flex-1" />
+            <datalist id="settings-topics">{videos.map(video => <option key={video.id} value={video.title}>{video.subject}</option>)}</datalist>
+            <button onClick={() => { const match = videos.find(video => video.title.toLocaleLowerCase() === todayTopicQuery.trim().toLocaleLowerCase()); if (match) onSetDailyGoalTopic(match.id); }} disabled={!videos.some(video => video.title.toLocaleLowerCase() === todayTopicQuery.trim().toLocaleLowerCase())} className="subtle-button disabled:opacity-40">Set today’s topic</button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button onClick={onStartTopicSelection} disabled={!videos.length} className="subtle-button disabled:opacity-40"><CheckSquare className="w-4 h-4" /> Select topics to delete</button>
+          <button onClick={() => confirmReset ? void onResetAllTopics() : setConfirmReset(true)} disabled={!videos.length} className={`subtle-button border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-40 ${confirmReset ? '!bg-rose-600 !text-white !border-rose-600' : ''}`}>
+            <Trash2 className="w-4 h-4" /> {confirmReset ? 'Confirm reset all topics' : 'Reset all topics'}
+          </button>
+          {confirmReset && <button onClick={() => setConfirmReset(false)} className="subtle-button">Cancel</button>}
+        </div>
+      </section>
 
       <div className="mb-5">
         <h2 className="settings-title text-xl font-semibold">Major categories</h2>

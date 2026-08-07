@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, BookOpen, Grid, Home, Kanban, LayoutGrid, List, Newspaper, Plus, Search, Settings, Target, X } from 'lucide-react';
+import { Bell, CalendarDays, BookOpen, Grid, Home, Kanban, LayoutGrid, List, Newspaper, Plus, Search, Settings, Target, X } from 'lucide-react';
 import { SortOption, ViewMode } from '../types';
 
 interface HeaderProps {
@@ -14,10 +14,11 @@ interface HeaderProps {
   onOpenAddModal: () => void;
   onOpenReminderSettings: () => void;
   onOpenSettings: () => void;
+  onOpenStreakCalendarModal: () => void;
   [key: string]: unknown;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, viewMode, setViewMode, sortOption, setSortOption, searchQuery, setSearchQuery, onOpenAddModal, onOpenReminderSettings, onOpenSettings }) => (
+export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, viewMode, setViewMode, sortOption, setSortOption, searchQuery, setSearchQuery, onOpenAddModal, onOpenReminderSettings, onOpenSettings, onOpenStreakCalendarModal }) => (
   <header className={`app-header sticky top-0 z-30 shrink-0 backdrop-blur-xl border-b ${currentPage === 'overview' ? 'momentum-header' : ''}`}>
     <div className="max-w-6xl mx-auto h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
       <button onClick={() => setCurrentPage('overview')} className="flex items-center gap-2.5 text-left">
@@ -32,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, vie
       </nav>
 
       <div className="flex items-center gap-1.5">
+        <button onClick={onOpenStreakCalendarModal} className="icon-button" title="Activity calendar and heatmap"><CalendarDays className="w-4 h-4" /></button>
         <button onClick={onOpenReminderSettings} className="icon-button" title="Reminder settings"><Bell className="w-4 h-4" /></button>
         <button onClick={onOpenSettings} className={`icon-button ${currentPage === 'settings' ? 'bg-[#e5ebdf] text-[#40502f]' : ''}`} title="Category settings"><Settings className="w-4 h-4" /></button>
         <button onClick={onOpenAddModal} className="icon-button" title="Add topic"><Plus className="w-4 h-4" /></button>

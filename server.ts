@@ -178,7 +178,7 @@ async function startServer() {
 
   app.get('/api/blogs', async (_req, res) => {
     try {
-      const response = await fetch('https://public-api.wordpress.com/rest/v1.1/sites/psalmify.wordpress.com/posts/?number=12');
+      const response = await fetch('https://public-api.wordpress.com/rest/v1.1/sites/psalmify.wordpress.com/posts/?number=100');
       if (!response.ok) throw new Error(`Psalmify API responded with ${response.status}`);
       res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
       res.json(await response.json());
