@@ -1,10 +1,10 @@
 import React from 'react';
-import { Bell, CalendarDays, BookMarked, Grid, Home, Kanban, LayoutGrid, List, Newspaper, Plus, Search, Settings, Target, X } from 'lucide-react';
+import { Bell, CalendarClock, CalendarDays, BookMarked, Grid, Home, Kanban, LayoutGrid, List, Newspaper, Plus, Search, Settings, Target, X } from 'lucide-react';
 import { SortOption, ViewMode } from '../types';
 
 interface HeaderProps {
-  currentPage: 'overview' | 'topics' | 'guide' | 'settings' | 'blogs';
-  setCurrentPage: (page: 'overview' | 'topics' | 'guide' | 'settings' | 'blogs') => void;
+  currentPage: 'overview' | 'topics' | 'guide' | 'tomorrow' | 'settings' | 'blogs';
+  setCurrentPage: (page: 'overview' | 'topics' | 'guide' | 'tomorrow' | 'settings' | 'blogs') => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   sortOption: SortOption;
@@ -38,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, vie
         <button onClick={() => setCurrentPage('overview')} className={`nav-button ${currentPage === 'overview' ? 'nav-active' : ''}`}><Home className="w-4 h-4" /><span className="hidden sm:inline">Today</span></button>
         <button onClick={() => setCurrentPage('topics')} className={`nav-button ${currentPage === 'topics' ? 'nav-active' : ''}`}><LionIcon className="w-4 h-4" /><span className="hidden sm:inline">Sheryians ReWise</span></button>
         <button onClick={() => setCurrentPage('guide')} className={`nav-button ${currentPage === 'guide' ? 'nav-active' : ''}`}><BookMarked className="w-4 h-4" /><span className="hidden sm:inline">Learning Map</span></button>
+        <button onClick={() => setCurrentPage('tomorrow')} className={`nav-button ${currentPage === 'tomorrow' ? 'nav-active' : ''}`}><CalendarClock className="w-4 h-4" /><span className="hidden sm:inline">Tomorrow</span></button>
         <button onClick={() => setCurrentPage('blogs')} className={`nav-button ${currentPage === 'blogs' ? 'nav-active' : ''}`}><Newspaper className="w-4 h-4" /><span className="hidden sm:inline">Blogs</span></button>
       </nav>
 

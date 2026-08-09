@@ -51,6 +51,7 @@ import { CategorySettingsPage } from './components/CategorySettingsPage';
 import { TodoWidget } from './components/TodoWidget';
 import { BlogPage } from './components/BlogPage';
 import { MernTopicsPage } from './components/MernTopicsPage';
+import { TomorrowPlanPage } from './components/TomorrowPlanPage';
 import { syncGoalWithReminderService } from './lib/notifications';
 import { playSelectedAlarmSound } from './lib/alarmSound';
 import { motion, AnimatePresence } from 'motion/react';
@@ -78,7 +79,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'guide' | 'settings' | 'blogs'>('overview');
+  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'guide' | 'tomorrow' | 'settings' | 'blogs'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
   const [mainTopics, setMainTopics] = useState<MainTopic[]>([]);
   const [mainTopicCategories, setMainTopicCategories] = useState<MainTopicCategory[]>([]);
@@ -812,6 +813,8 @@ export default function App() {
                     setMainTopics(current => current.map(topic => { const update = updates.find(item => item.id === topic.id); return update ? { ...topic, ...update, updatedAt: new Date().toISOString() } : topic; }));
                   }}
                 />
+              ) : currentPage === 'tomorrow' ? (
+                <TomorrowPlanPage />
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
                 <div className="pb-16 space-y-4">
