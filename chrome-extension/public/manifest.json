@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ReWise Complete — Study & Revision",
-  "description": "A complete new-tab study tracker with learning maps, tomorrow planning, goals, revision tools, reminders, and an in-app blog reader.",
-  "version": "3.1.0",
+  "description": "A complete new-tab study tracker with a multi-level topic tracker, tomorrow planning, goals, revision tools, reminders, and an in-app blog reader.",
+  "version": "3.1.1",
   "chrome_url_overrides": {
     "newtab": "index.html"
   },

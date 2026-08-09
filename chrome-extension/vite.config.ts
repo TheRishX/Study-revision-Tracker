@@ -13,7 +13,7 @@ export default defineConfig(() => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
-      // Learning Map and Tomorrow are shared with the web app. Force those
+      // Topic Tracker and Tomorrow are shared with the web app. Force those
       // imports to use this package's React runtime so hooks work in Chrome.
       dedupe: ['react', 'react-dom'],
     },

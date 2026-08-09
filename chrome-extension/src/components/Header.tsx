@@ -37,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, vie
       <nav className="app-nav flex items-center gap-1 p-1 rounded-xl">
         <button onClick={() => setCurrentPage('overview')} className={`nav-button ${currentPage === 'overview' ? 'nav-active' : ''}`}><Home className="w-4 h-4" /><span className="hidden sm:inline">Today</span></button>
         <button onClick={() => setCurrentPage('topics')} className={`nav-button ${currentPage === 'topics' ? 'nav-active' : ''}`}><LionIcon className="w-4 h-4" /><span className="hidden sm:inline">Sheryians ReWise</span></button>
-        <button onClick={() => setCurrentPage('guide')} className={`nav-button ${currentPage === 'guide' ? 'nav-active' : ''}`}><BookMarked className="w-4 h-4" /><span className="hidden sm:inline">Learning Map</span></button>
+        <button onClick={() => setCurrentPage('guide')} className={`nav-button ${currentPage === 'guide' ? 'nav-active' : ''}`}><BookMarked className="w-4 h-4" /><span className="hidden sm:inline">Topic Tracker</span></button>
         <button onClick={() => setCurrentPage('tomorrow')} className={`nav-button ${currentPage === 'tomorrow' ? 'nav-active' : ''}`}><CalendarClock className="w-4 h-4" /><span className="hidden sm:inline">Tomorrow</span></button>
         <button onClick={() => setCurrentPage('blogs')} className={`nav-button ${currentPage === 'blogs' ? 'nav-active' : ''}`}><Newspaper className="w-4 h-4" /><span className="hidden sm:inline">Blogs</span></button>
       </nav>
