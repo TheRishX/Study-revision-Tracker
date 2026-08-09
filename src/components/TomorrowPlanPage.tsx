@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Archive, Check, Clock3, History, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { Archive, Check, Clock3, History, Pencil, Plus, Sparkles, Sun, Trash2, X } from 'lucide-react';
 
 interface PlanTask { id: string; title: string; startTime: string; completed: boolean; }
 interface DayPlan { id: string; date: string; tasks: PlanTask[]; createdAt: string; archivedAt?: string; }
+interface Props { onMoveTaskToToday?: (task: Pick<PlanTask, 'title' | 'startTime'>) => Promise<void>; }
 
 const ACTIVE_KEY = 'rewise-tomorrow-plan';
 const ARCHIVE_KEY = 'rewise-tomorrow-plan-archive';
@@ -18,11 +19,12 @@ const formatTime = (value: string) => {
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(2000, 0, 1, hours, minutes));
 };
 
-export const TomorrowPlanPage: React.FC = () => {
+export const TomorrowPlanPage: React.FC<Props> = ({ onMoveTaskToToday }) => {
   const [plan, setPlan] = useState<DayPlan>(() => read(ACTIVE_KEY, newPlan()));
   const [archives, setArchives] = useState<DayPlan[]>(() => read(ARCHIVE_KEY, []));
   const [showArchive, setShowArchive] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
   const namedTasks = plan.tasks.filter(task => task.title.trim());
   const completed = namedTasks.filter(task => task.completed).length;
   const progress = namedTasks.length ? Math.round((completed / namedTasks.length) * 100) : 0;
@@ -49,6 +51,21 @@ export const TomorrowPlanPage: React.FC = () => {
     if (!title) return;
     updateTask(task.id, { title });
     setEditingTaskId(null);
+  };
+  const moveTaskToToday = async (task: PlanTask) => {
+    if (!onMoveTaskToToday || movingTaskId) return;
+    setMovingTaskId(task.id);
+    try {
+      await onMoveTaskToToday({ title: task.title, startTime: task.startTime });
+      setPlan(current => {
+        const tasks = current.tasks.filter(item => item.id !== task.id);
+        while (tasks.length < 2) tasks.push(newTask());
+        return { ...current, tasks };
+      });
+      setEditingTaskId(null);
+    } finally {
+      setMovingTaskId(null);
+    }
   };
   const archivePlan = () => {
     if (!readyToArchive) return;
@@ -79,7 +96,7 @@ export const TomorrowPlanPage: React.FC = () => {
         <button type="button" onClick={() => task.title.trim() && updateTask(task.id, { completed: !task.completed })} className="tomorrow-check" aria-label={`Mark task ${index + 1} complete`} disabled={!task.title.trim()}>{task.completed && <Check className="w-4 h-4" />}</button>
         <div className="tomorrow-task-number">0{index + 1}</div>
         {isEditing ? <form id={`tomorrow-task-form-${task.id}`} className="tomorrow-task-content" onSubmit={event => { event.preventDefault(); saveTask(task); }}><label>What must get done?<input autoFocus value={task.title} onChange={event => updateTask(task.id, { title: event.target.value, completed: event.target.value.trim() ? task.completed : false })} placeholder={index === 0 ? 'Your most important win…' : 'One clear, finishable task…'} maxLength={120} /></label><label className="tomorrow-time"><Clock3 className="w-4 h-4" /><span>Start at</span><input type="time" value={task.startTime} onChange={event => updateTask(task.id, { startTime: event.target.value })} aria-label={`Task ${index + 1} start time`} /></label></form> : <div className="tomorrow-task-content tomorrow-task-readonly"><div><span>Planned task</span><strong>{task.title}</strong></div><div className="tomorrow-time-display"><Clock3 className="w-4 h-4" /><span>Start at</span><strong>{formatTime(task.startTime)}</strong></div></div>}
-        <div className="tomorrow-task-controls">{isEditing ? <button type="submit" form={`tomorrow-task-form-${task.id}`} className="tomorrow-save" disabled={!task.title.trim()} aria-label={`Save task ${index + 1}`} title="Save task"><Check className="w-4 h-4" /></button> : <button type="button" onClick={event => { event.preventDefault(); event.stopPropagation(); setEditingTaskId(task.id); }} className="tomorrow-edit" aria-label={`Edit task ${index + 1}`} title="Edit task"><Pencil className="w-4 h-4" /></button>}{plan.tasks.length > 2 && <button type="button" onClick={() => removeTask(task.id)} className="tomorrow-remove" title="Remove task"><Trash2 className="w-4 h-4" /></button>}</div>
+        <div className="tomorrow-task-controls">{isEditing ? <button type="submit" form={`tomorrow-task-form-${task.id}`} className="tomorrow-save" disabled={!task.title.trim()} aria-label={`Save task ${index + 1}`} title="Save task"><Check className="w-4 h-4" /></button> : <><button type="button" onClick={() => void moveTaskToToday(task)} disabled={!onMoveTaskToToday || movingTaskId === task.id} className="tomorrow-move-today" aria-label={`Move ${task.title} to Today`} title="Move to Today"><Sun className="w-4 h-4" /></button><button type="button" onClick={event => { event.preventDefault(); event.stopPropagation(); setEditingTaskId(task.id); }} className="tomorrow-edit" aria-label={`Edit task ${index + 1}`} title="Edit task"><Pencil className="w-4 h-4" /></button></>}{plan.tasks.length > 2 && <button type="button" onClick={() => removeTask(task.id)} className="tomorrow-remove" title="Remove task"><Trash2 className="w-4 h-4" /></button>}</div>
       </article>})}
     </div>
 

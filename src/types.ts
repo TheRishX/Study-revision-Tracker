@@ -113,6 +113,7 @@ export interface DailyGoal {
   dateStr: string; // YYYY-MM-DD
   videoId?: string; // Optional linked revision topic
   intent?: string; // The concrete outcome for today
+  startTime?: string; // Optional HH:MM start time promoted from Tomorrow
   targetMinutes?: number;
   status?: 'not_started' | 'learning' | 'paused' | 'completed';
   lastCheckInAt?: string;

@@ -386,6 +386,21 @@ export default function App() {
     void syncGoalWithReminderService(updatedGoal);
   };
 
+  const handleMoveTomorrowTaskToToday = async (task: { title: string; startTime: string }) => {
+    const existingVideo = videos.find(video => video.title.trim().toLocaleLowerCase() === task.title.trim().toLocaleLowerCase());
+    const videoId = existingVideo?.id || await handleCreateTopicForDailyGoal(task.title);
+    handleSaveDailyGoal({
+      dateStr: todayStr,
+      videoId,
+      intent: task.title.trim(),
+      startTime: task.startTime,
+      targetMinutes: 45,
+      status: 'not_started',
+      completed: false,
+    });
+    setCurrentPage('overview');
+  };
+
   const handleChangeDailyGoal = () => {
     setDailyGoal(null);
     localStorage.removeItem(`dailyGoal_${todayStr}`);
@@ -783,7 +798,7 @@ export default function App() {
                   }}
                 />
               ) : currentPage === 'tomorrow' ? (
-                <TomorrowPlanPage />
+                <TomorrowPlanPage onMoveTaskToToday={handleMoveTomorrowTaskToToday} />
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
                 <div className="pb-16 space-y-4">

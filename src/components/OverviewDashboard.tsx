@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, BookOpen, Check, ChevronDown, CirclePause, Flame, Play, Plus, Sparkles, Target } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, ChevronDown, CirclePause, Clock3, Flame, Play, Plus, Sparkles, Target } from 'lucide-react';
 import { DailyGoal, VideoProject } from '../types';
 
 interface Props {
@@ -14,6 +14,10 @@ interface Props {
 }
 
 const formatTimer = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+const formatStartTime = (value: string) => {
+  const [hours, minutes] = value.split(':').map(Number);
+  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(2000, 0, 1, hours, minutes));
+};
 const localDateKey = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -184,6 +188,7 @@ export const OverviewDashboard: React.FC<Props> = ({
               <p className="momentum-supporting text-xs font-semibold uppercase tracking-[0.22em] text-white/65">{completed ? 'Today’s promise kept' : 'Your one focus'}</p>
               <h1 className="momentum-active-title text-2xl sm:text-4xl font-semibold tracking-[-0.04em] leading-tight mt-3 drop-shadow-lg">{dailyGoal.intent || linkedVideo?.title}</h1>
               <div className="momentum-goal-meta flex flex-wrap justify-center gap-x-4 gap-y-2 mt-3 text-xs text-white/70">
+                {dailyGoal.startTime && <span className="flex items-center gap-1"><Clock3 className="w-3.5 h-3.5" /> Start at {formatStartTime(dailyGoal.startTime)}</span>}
                 <span>{dailyGoal.targetMinutes || 45} minute target</span>
                 {linkedVideo && <span>Revision {linkedVideo.revisionCount + 1}/{linkedVideo.targetRevisionCount || 5}</span>}
                 <span className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-amber-300" /> {streakDays} day streak</span>
