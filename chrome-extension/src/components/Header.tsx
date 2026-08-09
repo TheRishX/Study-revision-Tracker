@@ -1,10 +1,10 @@
 import React from 'react';
-import { Bell, CalendarDays, BookOpen, Grid, Home, Kanban, LayoutGrid, List, Newspaper, Plus, Search, Settings, Target, X } from 'lucide-react';
+import { Bell, CalendarDays, BookMarked, Grid, Home, Kanban, LayoutGrid, List, Newspaper, Plus, Search, Settings, Target, X } from 'lucide-react';
 import { SortOption, ViewMode } from '../types';
 
 interface HeaderProps {
-  currentPage: 'overview' | 'topics' | 'settings' | 'blogs';
-  setCurrentPage: (page: 'overview' | 'topics' | 'settings' | 'blogs') => void;
+  currentPage: 'overview' | 'topics' | 'guide' | 'settings' | 'blogs';
+  setCurrentPage: (page: 'overview' | 'topics' | 'guide' | 'settings' | 'blogs') => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   sortOption: SortOption;
@@ -18,6 +18,14 @@ interface HeaderProps {
   [key: string]: unknown;
 }
 
+const LionIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M7.2 6.2 4.8 4.8l-.2 3.4A8.2 8.2 0 0 0 3.8 12c0 4.7 3.7 8.4 8.2 8.4s8.2-3.7 8.2-8.4c0-1.4-.3-2.7-.9-3.8l-.2-3.4-2.4 1.4" />
+    <path d="M7.4 9.2c1-1 2.6-1.6 4.6-1.6s3.6.6 4.6 1.6v4.1c0 2.7-2 4.8-4.6 4.8s-4.6-2.1-4.6-4.8V9.2Z" />
+    <path d="M9.2 11.4h.1M14.7 11.4h.1M10.4 14.2 12 15l1.6-.8M12 15v1.2" />
+  </svg>
+);
+
 export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, viewMode, setViewMode, sortOption, setSortOption, searchQuery, setSearchQuery, onOpenAddModal, onOpenReminderSettings, onOpenSettings, onOpenStreakCalendarModal }) => (
   <header className={`app-header sticky top-0 z-30 shrink-0 backdrop-blur-xl border-b ${currentPage === 'overview' ? 'momentum-header' : ''}`}>
     <div className="max-w-6xl mx-auto h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
@@ -28,7 +36,8 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, vie
 
       <nav className="app-nav flex items-center gap-1 p-1 rounded-xl">
         <button onClick={() => setCurrentPage('overview')} className={`nav-button ${currentPage === 'overview' ? 'nav-active' : ''}`}><Home className="w-4 h-4" /><span className="hidden sm:inline">Today</span></button>
-        <button onClick={() => setCurrentPage('topics')} className={`nav-button ${currentPage === 'topics' ? 'nav-active' : ''}`}><BookOpen className="w-4 h-4" /><span className="hidden sm:inline">Topics</span></button>
+        <button onClick={() => setCurrentPage('topics')} className={`nav-button ${currentPage === 'topics' ? 'nav-active' : ''}`}><LionIcon className="w-4 h-4" /><span className="hidden sm:inline">Sheryians ReWise</span></button>
+        <button onClick={() => setCurrentPage('guide')} className={`nav-button ${currentPage === 'guide' ? 'nav-active' : ''}`}><BookMarked className="w-4 h-4" /><span className="hidden sm:inline">Learning Map</span></button>
         <button onClick={() => setCurrentPage('blogs')} className={`nav-button ${currentPage === 'blogs' ? 'nav-active' : ''}`}><Newspaper className="w-4 h-4" /><span className="hidden sm:inline">Blogs</span></button>
       </nav>
 

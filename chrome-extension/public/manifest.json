@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Rewise 2 — Study & Revision",
   "description": "A complete new-tab study tracker with goals, revision tools, reminders, and an in-app blog reader.",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "chrome_url_overrides": {
     "newtab": "index.html"
   },

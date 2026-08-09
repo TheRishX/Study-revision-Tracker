@@ -1,9 +1,12 @@
 # Rewise Chrome Extension
 
-This is a standalone, local-only Chrome New Tab extension. It does not connect
-to Firebase, a server, or an external database. Topics, categories, revision
-history, goals, reflections, settings, and to-dos are saved in this Chrome
-profile’s extension storage.
+This Chrome New Tab extension syncs study topics, categories, and Learning Map
+data with the Rewise Firebase workspace. Existing revision features retain the
+extension's local-cache fallback when the remote database is unavailable.
+
+Version 2.1.6 adds the customizable Learning Map, Markdown hierarchy import,
+category management, completion tracking, colored nesting, and drag-and-drop
+reordering/reparenting. The Sheryians ReWise navigation now uses a lion icon.
 
 ## Build and install
 

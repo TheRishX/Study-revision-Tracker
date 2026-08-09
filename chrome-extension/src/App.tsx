@@ -17,11 +17,20 @@ import {
   deleteStudyCategory,
   updateCategoryOrders,
   updateVideoOrders,
+  subscribeToMainTopics,
+  addMainTopic,
+  updateMainTopic,
+  deleteMainTopic,
+  subscribeToMainTopicCategories,
+  addMainTopicCategory,
+  updateMainTopicCategory,
+  deleteMainTopicCategory,
+  updateMainTopicCategoryOrder,
 } from './lib/firebase';
 import { SAMPLE_VIDEOS } from './lib/sampleData';
 import { calculateAchievements } from './lib/achievements';
 import { soundEffects } from './lib/sound';
-import { VideoProject, ViewMode, SortOption, VideoStatus, RevisionLog, DailyGoal, DailyReflection, StudyCategory, ThemePreference } from './types';
+import { VideoProject, ViewMode, SortOption, VideoStatus, RevisionLog, DailyGoal, DailyReflection, StudyCategory, ThemePreference, MainTopic, MainTopicCategory } from './types';
 
 // Components
 import { Header } from './components/Header';
@@ -41,6 +50,7 @@ import { ReminderSettingsModal } from './components/ReminderSettingsModal';
 import { CategorySettingsPage } from './components/CategorySettingsPage';
 import { TodoWidget } from './components/TodoWidget';
 import { BlogPage } from './components/BlogPage';
+import { MernTopicsPage } from '../../src/components/MernTopicsPage';
 import { syncGoalWithReminderService } from './lib/notifications';
 import { playSelectedAlarmSound } from './lib/alarmSound';
 import { motion, AnimatePresence } from 'motion/react';
@@ -68,8 +78,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'settings' | 'blogs'>('overview');
+  const [currentPage, setCurrentPage] = useState<'overview' | 'topics' | 'guide' | 'settings' | 'blogs'>('overview');
   const [categories, setCategories] = useState<StudyCategory[]>([]);
+  const [mainTopics, setMainTopics] = useState<MainTopic[]>([]);
+  const [mainTopicCategories, setMainTopicCategories] = useState<MainTopicCategory[]>([]);
 
   // Service workers cannot play audio. When the app is already open, they notify
   // this page about a push so the user's locally selected sound can be played.
@@ -224,6 +236,9 @@ export default function App() {
     setCategories(updatedCategories);
     setCategoriesLoaded(true);
   }), []);
+
+  useEffect(() => subscribeToMainTopics(setMainTopics), []);
+  useEffect(() => subscribeToMainTopicCategories(setMainTopicCategories), []);
 
   const smartCategories = useMemo(() => {
     return [...categories, { id: 'uncategorized', name: 'Uncategorized', color: '#9aa191', keywords: [], orderIndex: 9999, createdAt: '', updatedAt: '', automatic: true } as StudyCategory];
@@ -702,6 +717,70 @@ export default function App() {
                 />
               ) : currentPage === 'blogs' ? (
                 <BlogPage />
+              ) : currentPage === 'guide' ? (
+                <MernTopicsPage
+                  topics={mainTopics}
+                  categories={mainTopicCategories}
+                  onCreateTopic={async topic => {
+                    const id = await addMainTopic(topic);
+                    const now = new Date().toISOString();
+                    setMainTopics(current => current.some(item => item.id === id) ? current : [...current, { ...topic, id, createdAt: now, updatedAt: now }]);
+                    return id;
+                  }}
+                  onUpdateTopic={async (id, updates) => {
+                    await updateMainTopic(id, updates);
+                    setMainTopics(current => current.map(item => item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item));
+                  }}
+                  onDeleteTopic={async id => {
+                    const idsToDelete = new Set([id]); let foundChild = true;
+                    while (foundChild) {
+                      foundChild = false;
+                      mainTopics.forEach(item => { if (item.parentId && idsToDelete.has(item.parentId) && !idsToDelete.has(item.id)) { idsToDelete.add(item.id); foundChild = true; } });
+                    }
+                    await Promise.all([...idsToDelete].map(topicId => deleteMainTopic(topicId)));
+                    setMainTopics(current => current.filter(item => !idsToDelete.has(item.id)));
+                  }}
+                  onCreateCategory={async name => {
+                    const id = await addMainTopicCategory(name, mainTopicCategories.length); const now = new Date().toISOString();
+                    setMainTopicCategories(current => current.some(item => item.id === id) ? current : [...current, { id, name, orderIndex: current.length, createdAt: now, updatedAt: now }]);
+                  }}
+                  onRenameCategory={async (oldName, newName) => {
+                    const category = mainTopicCategories.find(item => item.name === oldName); const affectedTopics = mainTopics.filter(item => item.category === oldName);
+                    await Promise.all([...(category ? [updateMainTopicCategory(category.id, newName)] : []), ...affectedTopics.map(item => updateMainTopic(item.id, { category: newName }))]);
+                    setMainTopicCategories(current => current.map(item => item.name === oldName ? { ...item, name: newName, updatedAt: new Date().toISOString() } : item));
+                    setMainTopics(current => current.map(item => item.category === oldName ? { ...item, category: newName, updatedAt: new Date().toISOString() } : item));
+                  }}
+                  onDeleteCategory={async name => {
+                    const category = mainTopicCategories.find(item => item.name === name); const affectedTopics = mainTopics.filter(item => item.category === name);
+                    await Promise.all([...(category ? [deleteMainTopicCategory(category.id)] : []), ...affectedTopics.map(item => updateMainTopic(item.id, { category: 'Uncategorized' }))]);
+                    setMainTopicCategories(current => current.filter(item => item.name !== name));
+                    setMainTopics(current => current.map(item => item.category === name ? { ...item, category: 'Uncategorized', updatedAt: new Date().toISOString() } : item));
+                  }}
+                  onReorderCategories={async orderedNames => {
+                    const now = new Date().toISOString(); const reordered: MainTopicCategory[] = [];
+                    for (let index = 0; index < orderedNames.length; index++) {
+                      const name = orderedNames[index]; const existing = mainTopicCategories.find(category => category.name === name);
+                      if (existing) { await updateMainTopicCategoryOrder(existing.id, index); reordered.push({ ...existing, orderIndex: index, updatedAt: now }); }
+                      else { const id = await addMainTopicCategory(name, index); reordered.push({ id, name, orderIndex: index, createdAt: now, updatedAt: now }); }
+                    }
+                    setMainTopicCategories(reordered);
+                  }}
+                  onMoveTopic={async (draggedId, targetId, placement) => {
+                    const dragged = mainTopics.find(topic => topic.id === draggedId); const target = mainTopics.find(topic => topic.id === targetId);
+                    if (!dragged || !target || dragged.id === target.id) return;
+                    const descendants = new Set<string>(); let changed = true;
+                    while (changed) { changed = false; mainTopics.forEach(topic => { if (topic.parentId && (topic.parentId === dragged.id || descendants.has(topic.parentId)) && !descendants.has(topic.id)) { descendants.add(topic.id); changed = true; } }); }
+                    if (descendants.has(target.id)) return;
+                    const parentId = placement === 'inside' ? target.id : target.parentId || ''; const category = target.category;
+                    const siblings = mainTopics.filter(topic => topic.id !== dragged.id && (topic.parentId || '') === parentId && topic.category === category).sort((a, b) => a.orderIndex - b.orderIndex);
+                    const targetIndex = placement === 'inside' ? siblings.length : siblings.findIndex(topic => topic.id === target.id) + (placement === 'after' ? 1 : 0);
+                    siblings.splice(Math.max(0, targetIndex), 0, { ...dragged, parentId, category });
+                    const updates = siblings.map((topic, index) => ({ id: topic.id, parentId: topic.id === dragged.id ? parentId : topic.parentId || '', category: topic.id === dragged.id ? category : topic.category, orderIndex: index }));
+                    descendants.forEach(id => { const descendant = mainTopics.find(topic => topic.id === id); if (descendant) updates.push({ id, parentId: descendant.parentId || '', category, orderIndex: descendant.orderIndex }); });
+                    await Promise.all(updates.map(update => updateMainTopic(update.id, { parentId: update.parentId, category: update.category, orderIndex: update.orderIndex })));
+                    setMainTopics(current => current.map(topic => { const update = updates.find(item => item.id === topic.id); return update ? { ...topic, ...update, updatedAt: new Date().toISOString() } : topic; }));
+                  }}
+                />
               ) : (
                 /* PAGE 2: All Study Topics Catalog */
                 <div className="pb-16 space-y-4">

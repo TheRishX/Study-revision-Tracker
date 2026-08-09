@@ -49,6 +49,26 @@ export interface StudyCategory {
   automatic?: boolean;
 }
 
+export interface MainTopic {
+  id: string;
+  name: string;
+  category: string;
+  parentId?: string;
+  usedFor: string;
+  completed: boolean;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MainTopicCategory {
+  id: string;
+  name: string;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ViewMode = 'grid' | 'compact_grid' | 'kanban' | 'list';
 export type ThemePreference = 'light' | 'dark' | 'system';
 
