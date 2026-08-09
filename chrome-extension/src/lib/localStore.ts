@@ -1,9 +1,11 @@
-import { RevisionLog, StudyCategory, VideoProject, VideoStatus } from '../types';
+import { MainTopic, MainTopicCategory, RevisionLog, StudyCategory, VideoProject, VideoStatus } from '../types';
 
 // The extension has no account or remote database. These records live only in
 // this Chrome profile under the extension's own localStorage origin.
 const VIDEOS_KEY = 'rewise-videos';
 const CATEGORIES_KEY = 'rewise-categories';
+const MAIN_TOPICS_KEY = 'rewise-main-topics';
+const MAIN_TOPIC_CATEGORIES_KEY = 'rewise-main-topic-categories';
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 
@@ -29,6 +31,14 @@ function categories() {
   return read<StudyCategory[]>(CATEGORIES_KEY, []).sort((a, b) => a.orderIndex - b.orderIndex);
 }
 
+function mainTopics() {
+  return read<MainTopic[]>(MAIN_TOPICS_KEY, []).sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+function mainTopicCategories() {
+  return read<MainTopicCategory[]>(MAIN_TOPIC_CATEGORIES_KEY, []).sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
 function saveVideos(items: VideoProject[]) {
   write(VIDEOS_KEY, items);
 }
@@ -37,12 +47,28 @@ function saveCategories(items: StudyCategory[]) {
   write(CATEGORIES_KEY, items);
 }
 
+function saveMainTopics(items: MainTopic[]) {
+  write(MAIN_TOPICS_KEY, items);
+}
+
+function saveMainTopicCategories(items: MainTopicCategory[]) {
+  write(MAIN_TOPIC_CATEGORIES_KEY, items);
+}
+
 export function replaceLocalVideos(items: VideoProject[]) {
   saveVideos(items);
 }
 
 export function replaceLocalCategories(items: StudyCategory[]) {
   saveCategories(items);
+}
+
+export function replaceLocalMainTopics(items: MainTopic[]) {
+  saveMainTopics(items);
+}
+
+export function replaceLocalMainTopicCategories(items: MainTopicCategory[]) {
+  saveMainTopicCategories(items);
 }
 
 function subscribe<T>(key: string, load: () => T, callback: (items: T) => void) {
@@ -60,6 +86,51 @@ export function subscribeToVideos(callback: (items: VideoProject[]) => void) {
 
 export function subscribeToCategories(callback: (items: StudyCategory[]) => void) {
   return subscribe(CATEGORIES_KEY, categories, callback);
+}
+
+export function subscribeToMainTopics(callback: (items: MainTopic[]) => void) {
+  return subscribe(MAIN_TOPICS_KEY, mainTopics, callback);
+}
+
+export function subscribeToMainTopicCategories(callback: (items: MainTopicCategory[]) => void) {
+  return subscribe(MAIN_TOPIC_CATEGORIES_KEY, mainTopicCategories, callback);
+}
+
+export async function addMainTopic(topic: Omit<MainTopic, 'id' | 'createdAt' | 'updatedAt'>) {
+  const now = new Date().toISOString();
+  const item: MainTopic = { ...topic, id: makeId('main-topic'), createdAt: now, updatedAt: now };
+  saveMainTopics([...mainTopics(), item]);
+  return item.id;
+}
+
+export async function updateMainTopic(topicId: string, updates: Partial<MainTopic>) {
+  const now = new Date().toISOString();
+  saveMainTopics(mainTopics().map(topic => topic.id === topicId ? { ...topic, ...updates, updatedAt: now } : topic));
+}
+
+export async function deleteMainTopic(topicId: string) {
+  saveMainTopics(mainTopics().filter(topic => topic.id !== topicId));
+}
+
+export async function addMainTopicCategory(name: string, orderIndex: number) {
+  const now = new Date().toISOString();
+  const category: MainTopicCategory = { id: makeId('main-category'), name, orderIndex, createdAt: now, updatedAt: now };
+  saveMainTopicCategories([...mainTopicCategories(), category]);
+  return category.id;
+}
+
+export async function updateMainTopicCategory(categoryId: string, name: string) {
+  const now = new Date().toISOString();
+  saveMainTopicCategories(mainTopicCategories().map(category => category.id === categoryId ? { ...category, name, updatedAt: now } : category));
+}
+
+export async function deleteMainTopicCategory(categoryId: string) {
+  saveMainTopicCategories(mainTopicCategories().filter(category => category.id !== categoryId));
+}
+
+export async function updateMainTopicCategoryOrder(categoryId: string, orderIndex: number) {
+  const now = new Date().toISOString();
+  saveMainTopicCategories(mainTopicCategories().map(category => category.id === categoryId ? { ...category, orderIndex, updatedAt: now } : category));
 }
 
 export async function addStudyCategory(name: string, color: string, orderIndex: number, keywords: string[] = []) {

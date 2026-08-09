@@ -32,41 +32,64 @@ const MAIN_TOPICS_COLLECTION = 'mainTopics';
 const MAIN_TOPIC_CATEGORIES_COLLECTION = 'mainTopicCategories';
 
 export function subscribeToMainTopics(callback: (topics: MainTopic[]) => void) {
-  return onSnapshot(query(collection(db, MAIN_TOPICS_COLLECTION)), snapshot => {
-    callback(snapshot.docs.map(topicDoc => {
+  let unsubscribeLocal = localStore.subscribeToMainTopics(callback);
+  try {
+    const unsubscribe = onSnapshot(query(collection(db, MAIN_TOPICS_COLLECTION)), snapshot => {
+      const topics = snapshot.docs.map(topicDoc => {
       const data = topicDoc.data();
       return {
         id: topicDoc.id, name: data.name || 'Untitled topic', category: data.category || 'General', parentId: data.parentId || '',
         usedFor: data.usedFor || '', completed: Boolean(data.completed), orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : 0,
         createdAt: data.createdAt || new Date().toISOString(), updatedAt: data.updatedAt || new Date().toISOString(),
       } as MainTopic;
-    }).sort((a, b) => a.orderIndex - b.orderIndex));
-  }, error => console.warn('Main topic subscription failed:', error));
+      }).sort((a, b) => a.orderIndex - b.orderIndex);
+      localStore.replaceLocalMainTopics(topics);
+      callback(topics);
+    }, error => console.warn('Main topic subscription unavailable; using the extension cache:', error));
+    return () => { unsubscribe(); unsubscribeLocal(); };
+  } catch (error) {
+    console.warn('Main topic subscription unavailable; using the extension cache:', error);
+    return unsubscribeLocal;
+  }
 }
 
 export function subscribeToMainTopicCategories(callback: (categories: MainTopicCategory[]) => void) {
-  return onSnapshot(query(collection(db, MAIN_TOPIC_CATEGORIES_COLLECTION)), snapshot => {
-    callback(snapshot.docs.map(categoryDoc => {
+  let unsubscribeLocal = localStore.subscribeToMainTopicCategories(callback);
+  try {
+    const unsubscribe = onSnapshot(query(collection(db, MAIN_TOPIC_CATEGORIES_COLLECTION)), snapshot => {
+      const categories = snapshot.docs.map(categoryDoc => {
       const data = categoryDoc.data();
       return { id: categoryDoc.id, name: data.name || 'Untitled category', orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : 0, createdAt: data.createdAt || new Date().toISOString(), updatedAt: data.updatedAt || new Date().toISOString() } as MainTopicCategory;
-    }).sort((a, b) => a.orderIndex - b.orderIndex));
-  }, error => console.warn('Main topic category subscription failed:', error));
+      }).sort((a, b) => a.orderIndex - b.orderIndex);
+      localStore.replaceLocalMainTopicCategories(categories);
+      callback(categories);
+    }, error => console.warn('Main topic category subscription unavailable; using the extension cache:', error));
+    return () => { unsubscribe(); unsubscribeLocal(); };
+  } catch (error) {
+    console.warn('Main topic category subscription unavailable; using the extension cache:', error);
+    return unsubscribeLocal;
+  }
 }
 
 export async function addMainTopic(topic: Omit<MainTopic, 'id' | 'createdAt' | 'updatedAt'>) {
-  const now = new Date().toISOString();
-  return (await addDoc(collection(db, MAIN_TOPICS_COLLECTION), { ...topic, createdAt: now, updatedAt: now })).id;
+  try {
+    const now = new Date().toISOString();
+    return (await addDoc(collection(db, MAIN_TOPICS_COLLECTION), { ...topic, createdAt: now, updatedAt: now })).id;
+  } catch (error) {
+    console.warn('Saving main topic to the extension cache:', error);
+    return localStore.addMainTopic(topic);
+  }
 }
-export async function updateMainTopic(topicId: string, updates: Partial<MainTopic>) { await updateDoc(doc(db, MAIN_TOPICS_COLLECTION, topicId), { ...updates, updatedAt: new Date().toISOString() }); }
-export async function deleteMainTopic(topicId: string) { await deleteDoc(doc(db, MAIN_TOPICS_COLLECTION, topicId)); }
-export async function addMainTopicCategory(name: string, orderIndex: number) { const now = new Date().toISOString(); return (await addDoc(collection(db, MAIN_TOPIC_CATEGORIES_COLLECTION), { name, orderIndex, createdAt: now, updatedAt: now })).id; }
-export async function updateMainTopicCategory(categoryId: string, name: string) { await updateDoc(doc(db, MAIN_TOPIC_CATEGORIES_COLLECTION, categoryId), { name, updatedAt: new Date().toISOString() }); }
-export async function deleteMainTopicCategory(categoryId: string) { await deleteDoc(doc(db, MAIN_TOPIC_CATEGORIES_COLLECTION, categoryId)); }
-export async function updateMainTopicCategoryOrder(categoryId: string, orderIndex: number) { await updateDoc(doc(db, MAIN_TOPIC_CATEGORIES_COLLECTION, categoryId), { orderIndex, updatedAt: new Date().toISOString() }); }
+export async function updateMainTopic(topicId: string, updates: Partial<MainTopic>) { try { await updateDoc(doc(db, MAIN_TOPICS_COLLECTION, topicId), { ...updates, updatedAt: new Date().toISOString() }); } catch (error) { console.warn('Updating main topic in the extension cache:', error); await localStore.updateMainTopic(topicId, updates); } }
+export async function deleteMainTopic(topicId: string) { try { await deleteDoc(doc(db, MAIN_TOPICS_COLLECTION, topicId)); } catch (error) { console.warn('Deleting main topic from the extension cache:', error); await localStore.deleteMainTopic(topicId); } }
+export async function addMainTopicCategory(name: string, orderIndex: number) { try { const now = new Date().toISOString(); return (await addDoc(collection(db, MAIN_TOPIC_CATEGORIES_COLLECTION), { name, orderIndex, createdAt: now, updatedAt: now })).id; } catch (error) { console.warn('Saving main topic category to the extension cache:', error); return localStore.addMainTopicCategory(name, orderIndex); } }
+export async function updateMainTopicCategory(categoryId: string, name: string) { try { await updateDoc(doc(db, MAIN_TOPIC_CATEGORIES_COLLECTION, categoryId), { name, updatedAt: new Date().toISOString() }); } catch (error) { console.warn('Updating main topic category in the extension cache:', error); await localStore.updateMainTopicCategory(categoryId, name); } }
+export async function deleteMainTopicCategory(categoryId: string) { try { await deleteDoc(doc(db, MAIN_TOPIC_CATEGORIES_COLLECTION, categoryId)); } catch (error) { console.warn('Deleting main topic category from the extension cache:', error); await localStore.deleteMainTopicCategory(categoryId); } }
+export async function updateMainTopicCategoryOrder(categoryId: string, orderIndex: number) { try { await updateDoc(doc(db, MAIN_TOPIC_CATEGORIES_COLLECTION, categoryId), { orderIndex, updatedAt: new Date().toISOString() }); } catch (error) { console.warn('Reordering main topic category in the extension cache:', error); await localStore.updateMainTopicCategoryOrder(categoryId, orderIndex); } }
 
 // Subscribe to videos list in real-time
 export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
-  let unsubscribeLocal = () => {};
+  const unsubscribeLocal = localStore.subscribeToVideos(callback);
   try {
     const q = query(collection(db, VIDEOS_COLLECTION));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -99,8 +122,6 @@ export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
       callback(items);
     }, (error) => {
       console.warn('Firestore subscription unavailable; using the extension cache:', error);
-      unsubscribeLocal();
-      unsubscribeLocal = localStore.subscribeToVideos(callback);
     });
     return () => { unsubscribe(); unsubscribeLocal(); };
   } catch (err) {
@@ -110,7 +131,7 @@ export function subscribeToVideos(callback: (videos: VideoProject[]) => void) {
 }
 
 export function subscribeToCategories(callback: (categories: StudyCategory[]) => void) {
-  let unsubscribeLocal = () => {};
+  const unsubscribeLocal = localStore.subscribeToCategories(callback);
   const categoriesQuery = query(collection(db, CATEGORIES_COLLECTION));
   const unsubscribe = onSnapshot(categoriesQuery, snapshot => {
     const categories = snapshot.docs.map(categoryDoc => {
@@ -130,8 +151,6 @@ export function subscribeToCategories(callback: (categories: StudyCategory[]) =>
     callback(sorted);
   }, error => {
     console.warn('Category subscription unavailable; using the extension cache:', error);
-    unsubscribeLocal();
-    unsubscribeLocal = localStore.subscribeToCategories(callback);
   });
   return () => { unsubscribe(); unsubscribeLocal(); };
 }
