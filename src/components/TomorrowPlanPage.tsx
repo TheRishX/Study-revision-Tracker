@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Archive, Check, Clock3, History, Pencil, Plus, Sparkles, Sun, Trash2, X } from 'lucide-react';
+import { Archive, Check, Clock3, History, Pencil, Plus, Sparkles, StickyNote, Sun, Trash2, X } from 'lucide-react';
 
 interface PlanTask { id: string; title: string; startTime: string; completed: boolean; }
 interface DayPlan { id: string; date: string; tasks: PlanTask[]; createdAt: string; archivedAt?: string; }
@@ -8,6 +8,7 @@ interface Props { onMoveTaskToToday?: (task: Pick<PlanTask, 'title' | 'startTime
 
 const ACTIVE_KEY = 'rewise-tomorrow-plan';
 const ARCHIVE_KEY = 'rewise-tomorrow-plan-archive';
+const NOTE_KEY = 'rewise-tomorrow-notepad';
 const id = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const tomorrowDate = () => { const date = new Date(); date.setDate(date.getDate() + 1); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
 const newTask = (startTime = ''): PlanTask => ({ id: id(), title: '', startTime, completed: false });
@@ -23,6 +24,8 @@ export const TomorrowPlanPage: React.FC<Props> = ({ onMoveTaskToToday }) => {
   const [plan, setPlan] = useState<DayPlan>(() => read(ACTIVE_KEY, newPlan()));
   const [archives, setArchives] = useState<DayPlan[]>(() => read(ARCHIVE_KEY, []));
   const [showArchive, setShowArchive] = useState(false);
+  const [showNotepad, setShowNotepad] = useState(false);
+  const [note, setNote] = useState(() => localStorage.getItem(NOTE_KEY) ?? '');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
   const namedTasks = plan.tasks.filter(task => task.title.trim());
@@ -33,6 +36,7 @@ export const TomorrowPlanPage: React.FC<Props> = ({ onMoveTaskToToday }) => {
 
   useEffect(() => { localStorage.setItem(ACTIVE_KEY, JSON.stringify(plan)); }, [plan]);
   useEffect(() => { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archives)); }, [archives]);
+  useEffect(() => { localStorage.setItem(NOTE_KEY, note); }, [note]);
 
   const updateTask = (taskId: string, updates: Partial<PlanTask>) => setPlan(current => ({ ...current, tasks: current.tasks.map(task => task.id === taskId ? { ...task, ...updates } : task) }));
   const addTask = () => {
@@ -81,7 +85,7 @@ export const TomorrowPlanPage: React.FC<Props> = ({ onMoveTaskToToday }) => {
   return <div className="tomorrow-page pb-16">
     <header className="tomorrow-hero">
       <div><p className="eyebrow">Plan with intention</p><h1>Tomorrow</h1><p>{formattedDate} · Start times only. Give the work the time it deserves.</p></div>
-      <button onClick={() => setShowArchive(true)} className="subtle-button !min-h-9 text-xs"><History className="w-4 h-4" /> Archive <span className="tomorrow-archive-count">{archives.length}</span></button>
+      <div className="tomorrow-hero-actions"><button onClick={() => setShowNotepad(true)} className={`tomorrow-note-button ${note ? 'tomorrow-note-has-text' : ''}`} aria-label="Open tomorrow notepad" title="Tomorrow notepad"><StickyNote className="w-4 h-4" />{note && <i />}</button><button onClick={() => setShowArchive(true)} className="subtle-button !min-h-9 text-xs"><History className="w-4 h-4" /> Archive <span className="tomorrow-archive-count">{archives.length}</span></button></div>
     </header>
 
     <section className="tomorrow-mission">
@@ -107,5 +111,6 @@ export const TomorrowPlanPage: React.FC<Props> = ({ onMoveTaskToToday }) => {
     <p className="tomorrow-rule">Two to four tasks. No crowded list. No fake end times. Just a clear place to begin.</p>
 
     {showArchive && <div className="learning-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && setShowArchive(false)}><section className="learning-modal tomorrow-archive-modal" role="dialog" aria-modal="true"><header><div><h2>Completed plans</h2><p>A quiet record of days when you followed through.</p></div><button onClick={() => setShowArchive(false)} className="icon-button"><X className="w-4 h-4" /></button></header>{archives.length ? <div className="tomorrow-history">{archives.map(item => <article key={item.id}><div><strong>{new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${item.date}T12:00:00`))}</strong><span>{item.tasks.length} wins</span></div><ol>{item.tasks.map(task => <li key={task.id}><time>{formatTime(task.startTime)}</time>{task.title}</li>)}</ol></article>)}</div> : <div className="mern-empty">Your completed plans will live here.</div>}</section></div>}
+    {showNotepad && <div className="learning-modal-backdrop" onMouseDown={event => event.target === event.currentTarget && setShowNotepad(false)}><section className="learning-modal tomorrow-notepad-modal" role="dialog" aria-modal="true" aria-label="Tomorrow notepad"><header><div><h2>Tomorrow notepad</h2><p>Paste or write anything. Every character stays exactly as entered.</p></div><button onClick={() => setShowNotepad(false)} className="icon-button" aria-label="Close notepad"><X className="w-4 h-4" /></button></header><textarea autoFocus value={note} onChange={event => setNote(event.target.value)} placeholder="Paste your notes here…" spellCheck={false} aria-label="Tomorrow notepad text" /><footer><span>Saved automatically on this device</span><button onClick={() => setShowNotepad(false)} className="primary-button !min-h-9">Done</button></footer></section></div>}
   </div>;
 };
